@@ -18,7 +18,7 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyAzsgFWAZrlyi7FvX0bQYEsK1dzWNTtXEs" />
         <activity
-            android:name="com.example.fse_project.MainActivity"
+            android:name="com.example.fse_project.presentation.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.FSE_Project">

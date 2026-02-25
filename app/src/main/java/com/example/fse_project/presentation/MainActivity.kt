@@ -1,4 +1,4 @@
-package com.example.fse_project
+package com.example.fse_project.presentation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
