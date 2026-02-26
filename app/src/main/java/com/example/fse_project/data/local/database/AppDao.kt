@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import com.example.fse_project.data.local.database.entity.ChargerEntity
 import com.example.fse_project.data.local.database.entity.ReservationEntity
 import com.example.fse_project.data.local.database.entity.StationEntity
@@ -55,6 +56,9 @@ interface AppDao {
 
     @Delete
     suspend fun deleteWallet(walletEntity: WalletEntity)
+
+    @Update
+    suspend fun updateWallet(userId: Int)
 
     @Query("SELECT * FROM wallets WHERE userId = :userId")
     suspend fun getWalletByUserId(userId : Int) : WalletEntity

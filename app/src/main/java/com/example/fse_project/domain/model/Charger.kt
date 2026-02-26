@@ -6,8 +6,8 @@ import com.example.fse_project.data.local.database.entity.ConnectorType
 import com.example.fse_project.data.local.database.entity.PowerOutput
 
 data class Charger(
-    val id : Int,
-    val stationOwnerId : Int, //station
+    val id : Long,
+    val stationOwnerId : Long, //station
     val chargerName : String,
     val chargerType: ChargerType,
     val powerOutput: PowerOutput,

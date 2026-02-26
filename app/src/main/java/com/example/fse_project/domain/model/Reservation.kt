@@ -4,11 +4,12 @@ import com.example.fse_project.data.local.database.entity.ReservationStatus
 import java.time.LocalDateTime
 
 data class Reservation(
-    val id : Int,
-    val userId : Int, //user
-    val vehicleId : Int, //vehicle
-    val chargerId : Int, //charger
+    val id : Long,
+    val userId : Long, //user
+    val vehicleId : Long, //vehicle
+    val chargerId : Long, //charger
     val startTime : LocalDateTime,
     val endTime : LocalDateTime,
+    val pricePerKwh : Double,
     val status : ReservationStatus
 )

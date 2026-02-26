@@ -18,6 +18,6 @@ import androidx.room.PrimaryKey
     )
 data class WalletEntity(
     @PrimaryKey
-    val userId : Int,
+    val userId : Long,
     val balance : Double
 )

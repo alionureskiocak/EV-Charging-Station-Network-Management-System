@@ -1,7 +1,7 @@
 package com.example.fse_project.domain.model
 
 data class User(
-    val id: Int,
+    val id: Long,
     val name: String,
     val email: String
 )

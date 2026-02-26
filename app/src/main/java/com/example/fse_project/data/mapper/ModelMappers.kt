@@ -102,6 +102,7 @@ fun Reservation.toEntity(): ReservationEntity = ReservationEntity(
     chargerId = chargerId,
     startTime = startTime,
     endTime = endTime,
+    pricePerKwh = pricePerKwh,
     status = status
 )
 

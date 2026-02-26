@@ -17,8 +17,8 @@ import androidx.room.PrimaryKey
 )
 data class ChargerEntity(
     @PrimaryKey(autoGenerate = true)
-    val id : Int,
-    val stationOwnerId : Int, //station
+    val id : Long,
+    val stationOwnerId : Long, //station
     val chargerName : String,
     val chargerType: ChargerType,
     val powerOutput: PowerOutput,
