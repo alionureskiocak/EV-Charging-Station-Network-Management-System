@@ -5,7 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "cars",
+    tableName = "vehicles",
     foreignKeys = [
         ForeignKey(
             entity = UserEntity::class,
@@ -15,10 +15,10 @@ import androidx.room.PrimaryKey
         )
     ]
 )
-data class CarEntity(
+data class VehicleEntity(
     @PrimaryKey(autoGenerate = true)
     val id : Int,
-    val ownerId : Int,
+    val ownerId : Int, //user
     val brand : String,
     val model : String,
     val capacity : Int,

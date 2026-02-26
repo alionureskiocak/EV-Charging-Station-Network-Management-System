@@ -15,6 +15,11 @@ import java.time.LocalDateTime
         onDelete = ForeignKey.CASCADE
     ),
         ForeignKey(
+            entity = VehicleEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["vehicleId"],
+            onDelete = ForeignKey.CASCADE),
+        ForeignKey(
             entity = ChargerEntity::class,
             parentColumns = ["id"],
             childColumns = ["chargerId"],
@@ -24,8 +29,9 @@ import java.time.LocalDateTime
 data class ReservationEntity(
     @PrimaryKey(autoGenerate = true)
     val id : Int,
-    val userId : Int,
-    val chargerId : Int,
+    val userId : Int, //user
+    val vehicleId : Int, //vehicle
+    val chargerId : Int, //charger
     val startTime : LocalDateTime,
     val endTime : LocalDateTime,
     val status : ReservationStatus

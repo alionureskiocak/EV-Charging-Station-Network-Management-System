@@ -9,7 +9,7 @@ import androidx.room.PrimaryKey
     foreignKeys = [
         ForeignKey(
             entity = StationEntity::class,
-            parentColumns = ["stationId"],
+            parentColumns = ["id"],
             childColumns = ["stationOwnerId"],
             onDelete = ForeignKey.CASCADE
         )
@@ -18,7 +18,7 @@ import androidx.room.PrimaryKey
 data class ChargerEntity(
     @PrimaryKey(autoGenerate = true)
     val id : Int,
-    val stationOwnerId : Int,
+    val stationOwnerId : Int, //station
     val chargerName : String,
     val chargerType: ChargerType,
     val powerOutput: PowerOutput,
