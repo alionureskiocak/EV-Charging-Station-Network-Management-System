@@ -11,13 +11,13 @@ interface UserRepository {
 
     //user,vehicle,wallet
 
-    suspend fun createUser(userEntity: UserEntity) : Long
-    suspend fun deleteUser(userEntity: UserEntity)
+    suspend fun createUser(user: User) : Long
+    suspend fun deleteUser(userId : Int)
     suspend fun getUserProfile(userId : Int) : User
     suspend fun getAllUsers() : Flow<List<User>>
 
-    suspend fun createVehicle(vehicleEntity: VehicleEntity) : Long
-    suspend fun deleteVehicle(vehicleEntity: VehicleEntity)
+    suspend fun createVehicle(vehicle: Vehicle) : Long
+    suspend fun deleteVehicle(vehicleId : Int)
     suspend fun getVehicleById(vehicleId : Int) : Vehicle
     fun getAllVehicles() : Flow<List<Vehicle>>
     fun getVehiclesByUserId(userId : Int) : Flow<List<Vehicle>>

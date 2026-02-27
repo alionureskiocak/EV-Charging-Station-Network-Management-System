@@ -4,6 +4,7 @@ import com.example.fse_project.data.local.database.AppDao
 import com.example.fse_project.data.local.database.entity.ChargerEntity
 import com.example.fse_project.data.local.database.entity.StationEntity
 import com.example.fse_project.data.mapper.toDomain
+import com.example.fse_project.data.mapper.toEntity
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.repository.StationRepository
@@ -16,12 +17,12 @@ import javax.inject.Inject
 class StationRepositoryImpl @Inject constructor(
     private val dao : AppDao
 ) : StationRepository{
-    override suspend fun createStation(stationEntity: StationEntity): Long {
-        return dao.insertStation(stationEntity)
+    override suspend fun createStation(station: Station): Long {
+        return dao.insertStation(station.toEntity())
     }
 
-    override suspend fun deleteStation(stationEntity: StationEntity) {
-        dao.deleteStation(stationEntity)
+    override suspend fun deleteStation(stationId : Int) {
+        dao.deleteStation(stationId)
     }
 
     override suspend fun getStationById(stationId: Int): Station {
@@ -40,12 +41,12 @@ class StationRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createCharger(chargerEntity: ChargerEntity): Long {
-        return dao.insertCharger(chargerEntity)
+    override suspend fun createCharger(charger: Charger): Long {
+        return dao.insertCharger(charger.toEntity())
     }
 
-    override suspend fun deleteCharger(chargerEntity: ChargerEntity) {
-        dao.deleteCharger(chargerEntity)
+    override suspend fun deleteCharger(chargerId : Int) {
+        dao.deleteCharger(chargerId)
     }
 
     override suspend fun getChargerById(chargerId: Int): Charger {

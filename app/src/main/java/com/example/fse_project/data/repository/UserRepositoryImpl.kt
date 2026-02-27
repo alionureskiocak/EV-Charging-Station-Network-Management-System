@@ -5,6 +5,7 @@ import com.example.fse_project.data.local.database.entity.UserEntity
 import com.example.fse_project.data.local.database.entity.VehicleEntity
 import com.example.fse_project.data.local.database.entity.WalletEntity
 import com.example.fse_project.data.mapper.toDomain
+import com.example.fse_project.data.mapper.toEntity
 import com.example.fse_project.domain.model.User
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.domain.repository.UserRepository
@@ -18,14 +19,14 @@ import javax.inject.Inject
 class UserRepositoryImpl @Inject constructor(
     private val dao : AppDao
 ) : UserRepository{
-    override suspend fun createUser(userEntity: UserEntity): Long {
-        val wallet = WalletEntity(userEntity.id,0.0)
+    override suspend fun createUser(user: User): Long {
+        val wallet = WalletEntity(user.id,0.0)
         dao.insertWallet(wallet)
-        return dao.insertUser(userEntity)
+        return dao.insertUser(user.toEntity())
     }
 
-    override suspend fun deleteUser(userEntity: UserEntity) {
-        dao.deleteUser(userEntity)
+    override suspend fun deleteUser(userId: Int) {
+        dao.deleteUser(userId)
     }
 
     override suspend fun getUserProfile(userId: Int): User {
@@ -40,12 +41,12 @@ class UserRepositoryImpl @Inject constructor(
         return users
     }
 
-    override suspend fun createVehicle(vehicleEntity: VehicleEntity): Long {
-        return dao.insertVehicle(vehicleEntity)
+    override suspend fun createVehicle(vehicle: Vehicle): Long {
+        return dao.insertVehicle(vehicle.toEntity())
     }
 
-    override suspend fun deleteVehicle(vehicleEntity: VehicleEntity) {
-        dao.deleteVehicle(vehicleEntity)
+    override suspend fun deleteVehicle(vehicleId : Int) {
+        dao.deleteVehicle(vehicleId)
     }
 
     override suspend fun getVehicleById(vehicleId: Int): Vehicle {

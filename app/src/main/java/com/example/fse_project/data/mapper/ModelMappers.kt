@@ -92,6 +92,7 @@ fun ReservationEntity.toDomain(): Reservation = Reservation(
     chargerId = chargerId,
     startTime = startTime,
     endTime = endTime,
+    pricePerKwh = pricePerKwh,
     status = status
 )
 

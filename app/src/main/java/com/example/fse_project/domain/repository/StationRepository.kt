@@ -8,14 +8,14 @@ import kotlinx.coroutines.flow.Flow
 
 interface StationRepository {
 
-    suspend fun createStation(stationEntity: StationEntity) : Long
-    suspend fun deleteStation(stationEntity: StationEntity)
+    suspend fun createStation(station: Station) : Long
+    suspend fun deleteStation(stationId : Int)
     suspend fun getStationById(stationId : Int) : Station
     suspend fun getStationByChargerId(chargerId : Int) : Station
     fun getAllStations() : Flow<List<Station>>
 
-    suspend fun createCharger(chargerEntity: ChargerEntity) : Long
-    suspend fun deleteCharger(chargerEntity: ChargerEntity)
+    suspend fun createCharger(charger: Charger) : Long
+    suspend fun deleteCharger(chargerId : Int)
     suspend fun getChargerById(chargerId : Int) : Charger
     fun getChargersByStation(stationId : Int) : Flow<List<Charger>>
     fun getAllChargers() : Flow<List<Charger>>

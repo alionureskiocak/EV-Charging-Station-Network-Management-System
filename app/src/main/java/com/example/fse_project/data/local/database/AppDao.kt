@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.example.fse_project.data.local.database.entity.ChargerEntity
 import com.example.fse_project.data.local.database.entity.ReservationEntity
+import com.example.fse_project.data.local.database.entity.ReservationStatus
 import com.example.fse_project.data.local.database.entity.StationEntity
 import com.example.fse_project.data.local.database.entity.UserEntity
 import com.example.fse_project.data.local.database.entity.VehicleEntity
@@ -21,8 +22,8 @@ interface AppDao {
     @Insert
     suspend fun insertUser(userEntity: UserEntity) : Long
 
-    @Delete
-    suspend fun deleteUser(userEntity: UserEntity)
+    @Query("DELETE FROM users WHERE id = :userId")
+    suspend fun deleteUser(userId : Int)
 
     @Query("SELECT * FROM users WHERE id = :userId")
     suspend fun getUserById(userId : Int) : UserEntity
@@ -36,8 +37,8 @@ interface AppDao {
     @Insert
     suspend fun insertVehicle(vehicleEntity: VehicleEntity) : Long
 
-    @Delete
-    suspend fun deleteVehicle(vehicleEntity: VehicleEntity)
+    @Query("DELETE FROM vehicles WHERE id = :vehicleId")
+    suspend fun deleteVehicle(vehicleId : Int)
 
     @Query("SELECT * FROM vehicles WHERE id = :vehicleId")
     suspend fun getVehicleById(vehicleId : Int) : VehicleEntity
@@ -54,8 +55,8 @@ interface AppDao {
     @Insert
     suspend fun insertWallet(walletEntity: WalletEntity)
 
-    @Delete
-    suspend fun deleteWallet(walletEntity: WalletEntity)
+    @Query("DELETE FROM wallets WHERE userId = :userId")
+    suspend fun deleteWallet(userId : Int)
 
     @Query("UPDATE wallets SET balance = :balance WHERE userId = :userId")
     suspend fun updateWallet(userId: Int, balance : Double)
@@ -72,8 +73,8 @@ interface AppDao {
     @Insert
     suspend fun insertStation(stationEntity: StationEntity) : Long
 
-    @Delete
-    suspend fun deleteStation(stationEntity: StationEntity)
+    @Query("DELETE FROM stations WHERE id = :stationId")
+    suspend fun deleteStation(stationId : Int)
 
     @Query("SELECT * FROM stations WHERE id = :stationId")
     suspend fun getStationById(stationId : Int) : StationEntity
@@ -93,8 +94,8 @@ interface AppDao {
     @Insert
     suspend fun insertCharger(chargerEntity: ChargerEntity) : Long
 
-    @Delete
-    suspend fun deleteCharger(chargerEntity: ChargerEntity)
+    @Query("DELETE FROM chargers WHERE id = :chargerId")
+    suspend fun deleteCharger(chargerId : Int)
 
     @Query("SELECT * FROM chargers WHERE id = :chargerId")
     suspend fun getChargerById(chargerId : Int) : ChargerEntity
@@ -111,8 +112,11 @@ interface AppDao {
     @Insert
     suspend fun insertReservation(reservationEntity: ReservationEntity) : Long
 
-    @Delete
-    suspend fun deleteReservation(reservationEntity: ReservationEntity)
+    @Query("DELETE FROM reservations WHERE id = :reservationId")
+    suspend fun deleteReservation(reservationId : Int)
+
+    @Query("UPDATE reservations SET status = :status WHERE id = :resId")
+    suspend fun updateReservationStatus(resId : Int,status : ReservationStatus)
 
     @Query("SELECT * FROM reservations WHERE id = :reservationId")
     suspend fun getReservationById(reservationId : Int) : ReservationEntity
