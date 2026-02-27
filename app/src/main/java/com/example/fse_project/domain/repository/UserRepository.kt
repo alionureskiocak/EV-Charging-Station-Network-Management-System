@@ -19,8 +19,8 @@ interface UserRepository {
     suspend fun createVehicle(vehicleEntity: VehicleEntity) : Long
     suspend fun deleteVehicle(vehicleEntity: VehicleEntity)
     suspend fun getVehicleById(vehicleId : Int) : Vehicle
-    fun getAllVehicles() : Flow<List<VehicleEntity>>
-    suspend fun getVehiclesByUserId(userId : Int) : Flow<List<VehicleEntity>>
+    fun getAllVehicles() : Flow<List<Vehicle>>
+    fun getVehiclesByUserId(userId : Int) : Flow<List<Vehicle>>
 
     suspend fun updateWallet(userId: Int, balance : Double)
 

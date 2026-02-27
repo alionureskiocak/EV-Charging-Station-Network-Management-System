@@ -52,12 +52,18 @@ class UserRepositoryImpl @Inject constructor(
         return dao.getVehicleById(vehicleId).toDomain()
     }
 
-    override fun getAllVehicles(): Flow<List<VehicleEntity>> {
-        return dao.getVehicles()
+    override fun getAllVehicles(): Flow<List<Vehicle>> {
+        return dao.getVehicles().map {
+            it.map { it.toDomain() }
+        }
     }
 
-    override suspend fun getVehiclesByUserId(userId: Int): Flow<List<VehicleEntity>> {
-        return dao.getVehiclesByUserId(userId)
+    override fun getVehiclesByUserId(userId: Int): Flow<List<Vehicle>> {
+        return dao.getVehiclesByUserId(userId).map {
+            it.map {
+                it.toDomain()
+            }
+        }
     }
 
     override suspend fun updateWallet(userId: Int, balance: Double) {

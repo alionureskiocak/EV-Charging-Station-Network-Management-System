@@ -46,7 +46,7 @@ interface AppDao {
     fun getVehicles() : Flow<List<VehicleEntity>>
 
     @Query("SELECT * FROM vehicles WHERE ownerId = :userId")
-    suspend fun getVehiclesByUserId(userId : Int) : Flow<List<VehicleEntity>>
+    fun getVehiclesByUserId(userId : Int) : Flow<List<VehicleEntity>>
 
 
     /////////////// WALLET //////////////////////////
@@ -70,7 +70,7 @@ interface AppDao {
     /////////////// STATION //////////////////////////
 
     @Insert
-    suspend fun insertStation(stationEntity: StationEntity)
+    suspend fun insertStation(stationEntity: StationEntity) : Long
 
     @Delete
     suspend fun deleteStation(stationEntity: StationEntity)
@@ -91,7 +91,7 @@ interface AppDao {
     /////////////// CHARGER //////////////////////////
 
     @Insert
-    suspend fun insertCharger(chargerEntity: ChargerEntity)
+    suspend fun insertCharger(chargerEntity: ChargerEntity) : Long
 
     @Delete
     suspend fun deleteCharger(chargerEntity: ChargerEntity)
@@ -109,7 +109,7 @@ interface AppDao {
     /////////////// RESERVATION //////////////////////////
 
     @Insert
-    suspend fun insertReservation(reservationEntity: ReservationEntity)
+    suspend fun insertReservation(reservationEntity: ReservationEntity) : Long
 
     @Delete
     suspend fun deleteReservation(reservationEntity: ReservationEntity)
@@ -118,13 +118,13 @@ interface AppDao {
     suspend fun getReservationById(reservationId : Int) : ReservationEntity
 
     @Query("SELECT * FROM reservations WHERE userId = :userId")
-    suspend fun getReservationsByUserId(userId : Int) : Flow<List<ReservationEntity>>
+    fun getReservationsByUserId(userId : Int) : Flow<List<ReservationEntity>>
 
     @Query("SELECT * FROM reservations WHERE vehicleId = :vehicleId")
-    suspend fun getReservationsByVehicleId(vehicleId : Int) : Flow<List<ReservationEntity>>
+    fun getReservationsByVehicleId(vehicleId : Int) : Flow<List<ReservationEntity>>
 
     @Query("SELECT * FROM reservations WHERE chargerId = :chargerId")
-    suspend fun getReservationsByChargerId(chargerId : Int) : Flow<List<ReservationEntity>>
+    fun getReservationsByChargerId(chargerId : Int) : Flow<List<ReservationEntity>>
 
     @Query("SELECT * FROM reservations")
     fun getReservations() : Flow<List<ReservationEntity>>
