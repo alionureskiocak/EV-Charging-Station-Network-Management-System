@@ -19,7 +19,7 @@ interface AppDao {
     /////////////// USER //////////////////////////
 
     @Insert
-    suspend fun insertUser(userEntity: UserEntity)
+    suspend fun insertUser(userEntity: UserEntity) : Long
 
     @Delete
     suspend fun deleteUser(userEntity: UserEntity)
@@ -34,7 +34,7 @@ interface AppDao {
     /////////////// VEHICLE //////////////////////////
 
     @Insert
-    suspend fun insertVehicle(vehicleEntity: VehicleEntity)
+    suspend fun insertVehicle(vehicleEntity: VehicleEntity) : Long
 
     @Delete
     suspend fun deleteVehicle(vehicleEntity: VehicleEntity)
@@ -46,7 +46,7 @@ interface AppDao {
     fun getVehicles() : Flow<List<VehicleEntity>>
 
     @Query("SELECT * FROM vehicles WHERE ownerId = :userId")
-    suspend fun getVehicleByUserId(userId : Int) : VehicleEntity
+    suspend fun getVehiclesByUserId(userId : Int) : Flow<List<VehicleEntity>>
 
 
     /////////////// WALLET //////////////////////////
@@ -57,8 +57,8 @@ interface AppDao {
     @Delete
     suspend fun deleteWallet(walletEntity: WalletEntity)
 
-    @Update
-    suspend fun updateWallet(userId: Int)
+    @Query("UPDATE wallets SET balance = :balance WHERE userId = :userId")
+    suspend fun updateWallet(userId: Int, balance : Double)
 
     @Query("SELECT * FROM wallets WHERE userId = :userId")
     suspend fun getWalletByUserId(userId : Int) : WalletEntity
