@@ -3,12 +3,12 @@ package com.example.fse_project.data.local.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import com.example.fse_project.data.local.database.entity.ChargerEntity
-import com.example.fse_project.data.local.database.entity.ReservationEntity
-import com.example.fse_project.data.local.database.entity.StationEntity
-import com.example.fse_project.data.local.database.entity.UserEntity
-import com.example.fse_project.data.local.database.entity.VehicleEntity
-import com.example.fse_project.data.local.database.entity.WalletEntity
+import com.example.fse_project.data.local.database.entities.ChargerEntity
+import com.example.fse_project.data.local.database.entities.ReservationEntity
+import com.example.fse_project.data.local.database.entities.StationEntity
+import com.example.fse_project.data.local.database.entities.UserEntity
+import com.example.fse_project.data.local.database.entities.VehicleEntity
+import com.example.fse_project.data.local.database.entities.WalletEntity
 
 @TypeConverters(DataConverters::class)
 @Database(

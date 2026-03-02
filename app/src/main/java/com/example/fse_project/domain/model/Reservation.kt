@@ -1,6 +1,6 @@
 package com.example.fse_project.domain.model
 
-import com.example.fse_project.data.local.database.entity.ReservationStatus
+import com.example.fse_project.data.local.database.entities.ReservationStatus
 import java.time.LocalDateTime
 
 data class Reservation(

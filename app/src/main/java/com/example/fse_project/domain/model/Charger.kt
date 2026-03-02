@@ -1,9 +1,9 @@
 package com.example.fse_project.domain.model
 
-import com.example.fse_project.data.local.database.entity.ChargerStatus
-import com.example.fse_project.data.local.database.entity.ChargerType
-import com.example.fse_project.data.local.database.entity.ConnectorType
-import com.example.fse_project.data.local.database.entity.PowerOutput
+import com.example.fse_project.data.local.database.entities.ChargerStatus
+import com.example.fse_project.data.local.database.entities.ChargerType
+import com.example.fse_project.data.local.database.entities.ConnectorType
+import com.example.fse_project.data.local.database.entities.PowerOutput
 
 data class Charger(
     val id : Long,

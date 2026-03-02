@@ -1,6 +1,6 @@
 package com.example.fse_project.data.local.database
 import androidx.room.TypeConverter
-import com.example.fse_project.data.local.database.entity.*
+import com.example.fse_project.data.local.database.entities.*
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 

@@ -1,7 +1,5 @@
 package com.example.fse_project.domain.repository
 
-import com.example.fse_project.data.local.database.entity.ChargerEntity
-import com.example.fse_project.data.local.database.entity.StationEntity
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Station
 import kotlinx.coroutines.flow.Flow

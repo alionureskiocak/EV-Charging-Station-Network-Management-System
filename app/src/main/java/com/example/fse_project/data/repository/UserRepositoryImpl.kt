@@ -1,21 +1,18 @@
 package com.example.fse_project.data.repository
 
 import com.example.fse_project.data.local.database.AppDao
-import com.example.fse_project.data.local.database.entity.UserEntity
-import com.example.fse_project.data.local.database.entity.VehicleEntity
-import com.example.fse_project.data.local.database.entity.WalletEntity
+import com.example.fse_project.data.local.database.entities.WalletEntity
 import com.example.fse_project.data.mapper.toDomain
 import com.example.fse_project.data.mapper.toEntity
 import com.example.fse_project.domain.model.User
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.domain.repository.UserRepository
-import dagger.hilt.android.scopes.ViewModelScoped
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import javax.inject.Singleton
 
-@ViewModelScoped
+@Singleton
 class UserRepositoryImpl @Inject constructor(
     private val dao : AppDao
 ) : UserRepository{

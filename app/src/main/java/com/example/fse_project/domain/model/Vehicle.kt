@@ -1,6 +1,6 @@
 package com.example.fse_project.domain.model
 
-import com.example.fse_project.data.local.database.entity.ConnectorType
+import com.example.fse_project.data.local.database.entities.ConnectorType
 
 data class Vehicle(
     val id : Long,

@@ -1,17 +1,17 @@
 package com.example.fse_project.data.local.database
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
-import androidx.room.Update
-import com.example.fse_project.data.local.database.entity.ChargerEntity
-import com.example.fse_project.data.local.database.entity.ReservationEntity
-import com.example.fse_project.data.local.database.entity.ReservationStatus
-import com.example.fse_project.data.local.database.entity.StationEntity
-import com.example.fse_project.data.local.database.entity.UserEntity
-import com.example.fse_project.data.local.database.entity.VehicleEntity
-import com.example.fse_project.data.local.database.entity.WalletEntity
+import androidx.room.Transaction
+import com.example.fse_project.data.local.database.entities.ChargerEntity
+import com.example.fse_project.data.local.database.entities.ReservationEntity
+import com.example.fse_project.data.local.database.entities.ReservationStatus
+import com.example.fse_project.data.local.database.entities.StationEntity
+import com.example.fse_project.data.local.database.entities.UserEntity
+import com.example.fse_project.data.local.database.entities.VehicleEntity
+import com.example.fse_project.data.local.database.entities.WalletEntity
+import com.example.fse_project.data.local.database.relations.StationWithChargers
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -87,6 +87,10 @@ interface AppDao {
 
     @Query("SELECT * FROM stations")
     fun getStations() : Flow<List<StationEntity>>
+
+    @Transaction
+    @Query("SELECT * FROM stations")
+    fun getStationWithChargers() : Flow<List<StationWithChargers>>
 
 
     /////////////// CHARGER //////////////////////////

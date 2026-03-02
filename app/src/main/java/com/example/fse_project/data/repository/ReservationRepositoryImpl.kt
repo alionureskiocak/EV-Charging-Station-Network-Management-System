@@ -1,7 +1,7 @@
 package com.example.fse_project.data.repository
 
 import com.example.fse_project.data.local.database.AppDao
-import com.example.fse_project.data.local.database.entity.ReservationStatus
+import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.data.mapper.toDomain
 import com.example.fse_project.data.mapper.toEntity
 import com.example.fse_project.domain.model.Reservation

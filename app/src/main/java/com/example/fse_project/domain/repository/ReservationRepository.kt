@@ -1,6 +1,6 @@
 package com.example.fse_project.domain.repository
 
-import com.example.fse_project.data.local.database.entity.ReservationStatus
+import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.domain.model.Reservation
 import kotlinx.coroutines.flow.Flow
 

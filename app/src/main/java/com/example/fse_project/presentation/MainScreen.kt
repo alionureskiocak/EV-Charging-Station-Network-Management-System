@@ -1,43 +1,20 @@
 package com.example.fse_project.presentation
 
-import android.R
 import android.content.Context
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
+import android.graphics.Canvas
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import com.example.fse_project.UserMarker
-import com.google.android.gms.maps.CameraUpdateFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.LatLngBounds
-import com.google.maps.android.PolyUtil
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.Polyline
-import com.google.maps.android.compose.rememberCameraPositionState
 
 @Composable
-fun MainScreen() {
-
+fun MainScreen(
+     viewModel: AsdViewModel = hiltViewModel()
+) {
+    /*
     val izmir = LatLng(38.4237, 27.1428)
     val istanbul = LatLng(41.0082, 28.9784)
 
@@ -147,7 +124,7 @@ fun MainScreen() {
         }
 
 
-    }
+    }*/
 }
 
 fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
@@ -160,7 +137,7 @@ fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescri
 
     // 2. Boş bir bitmap oluşturup üzerine çizdiriyoruz
     val bm = Bitmap.createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(bm)
+    val canvas = Canvas(bm)
     drawable.draw(canvas)
 
     // 3. Google Maps'in anlayacağı formata çeviriyoruz

@@ -1,8 +1,7 @@
-package com.example.fse_project.data.local.database.entity
+package com.example.fse_project.data.local.database.entities
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
-import androidx.room.ForeignKey.Companion.CASCADE
 import androidx.room.PrimaryKey
 
 @Entity(

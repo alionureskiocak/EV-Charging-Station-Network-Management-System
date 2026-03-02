@@ -1,8 +1,6 @@
 package com.example.fse_project.data.repository
 
 import com.example.fse_project.data.local.database.AppDao
-import com.example.fse_project.data.local.database.entity.ChargerEntity
-import com.example.fse_project.data.local.database.entity.StationEntity
 import com.example.fse_project.data.mapper.toDomain
 import com.example.fse_project.data.mapper.toEntity
 import com.example.fse_project.domain.model.Charger

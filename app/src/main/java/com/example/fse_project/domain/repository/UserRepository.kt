@@ -1,8 +1,5 @@
 package com.example.fse_project.domain.repository
 
-import com.example.fse_project.data.local.database.entity.UserEntity
-import com.example.fse_project.data.local.database.entity.VehicleEntity
-import com.example.fse_project.data.local.database.entity.WalletEntity
 import com.example.fse_project.domain.model.User
 import com.example.fse_project.domain.model.Vehicle
 import kotlinx.coroutines.flow.Flow
