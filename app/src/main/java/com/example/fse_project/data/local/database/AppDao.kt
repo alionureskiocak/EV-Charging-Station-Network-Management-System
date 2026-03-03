@@ -12,6 +12,7 @@ import com.example.fse_project.data.local.database.entities.UserEntity
 import com.example.fse_project.data.local.database.entities.VehicleEntity
 import com.example.fse_project.data.local.database.entities.WalletEntity
 import com.example.fse_project.data.local.database.relations.StationWithChargers
+import com.example.fse_project.data.local.database.relations.UserWithVehiclesAndWallet
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -30,6 +31,10 @@ interface AppDao {
 
     @Query("SELECT * FROM users")
     fun getUsers() : Flow<List<UserEntity>>
+
+    @Transaction
+    @Query("SELECT * FROM users")
+    fun getUsersWithVehiclesAndWallet() : Flow<List<UserWithVehiclesAndWallet>>
 
 
     /////////////// VEHICLE //////////////////////////
@@ -136,14 +141,5 @@ interface AppDao {
 
     @Query("SELECT * FROM reservations")
     fun getReservations() : Flow<List<ReservationEntity>>
-
-
-
-
-
-
-
-
-
 
 }

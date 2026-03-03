@@ -22,6 +22,14 @@ class UserRepositoryImpl @Inject constructor(
         return dao.insertUser(user.toEntity())
     }
 
+    override fun getUsersWithVehiclesAndWallet(): Flow<List<User>> {
+        return dao.getUsersWithVehiclesAndWallet().map {
+            it.map {
+                it.toDomain()
+            }
+        }
+    }
+
     override suspend fun deleteUser(userId: Int) {
         dao.deleteUser(userId)
     }

@@ -3,16 +3,27 @@ package com.example.fse_project.presentation
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fse_project.domain.model.Station
 import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 
 @Composable
 fun MainScreen(
-     viewModel: AsdViewModel = hiltViewModel()
+     viewModel: MainViewModel = hiltViewModel()
 ) {
     /*
     val izmir = LatLng(38.4237, 27.1428)
@@ -125,6 +136,26 @@ fun MainScreen(
 
 
     }*/
+
+    val stations by viewModel.stations.collectAsState()
+    val station : Station? = stations.firstOrNull()
+    station?.let {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            LazyRow {
+                items(station.chargers) { charger ->
+                    Button(onClick = {}) {
+                        Text("${charger.chargerStatus}")
+                    }
+                }
+            }
+        }
+    }
+
+
 }
 
 fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {

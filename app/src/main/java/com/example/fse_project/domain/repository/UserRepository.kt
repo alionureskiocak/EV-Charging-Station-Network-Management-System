@@ -13,6 +13,8 @@ interface UserRepository {
     suspend fun getUserProfile(userId : Int) : User
     suspend fun getAllUsers() : Flow<List<User>>
 
+    fun getUsersWithVehiclesAndWallet() : Flow<List<User>>
+
     suspend fun createVehicle(vehicle: Vehicle) : Long
     suspend fun deleteVehicle(vehicleId : Int)
     suspend fun getVehicleById(vehicleId : Int) : Vehicle

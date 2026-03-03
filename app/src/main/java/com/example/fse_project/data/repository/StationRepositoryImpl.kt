@@ -1,8 +1,10 @@
 package com.example.fse_project.data.repository
 
 import com.example.fse_project.data.local.database.AppDao
+import com.example.fse_project.data.local.database.relations.StationWithChargers
 import com.example.fse_project.data.mapper.toDomain
 import com.example.fse_project.data.mapper.toEntity
+import com.example.fse_project.data.mapper.toStation
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.repository.StationRepository
@@ -15,6 +17,15 @@ import javax.inject.Inject
 class StationRepositoryImpl @Inject constructor(
     private val dao : AppDao
 ) : StationRepository{
+
+    override fun getStationDomainModels(): Flow<List<Station>> {
+        return dao.getStationWithChargers().map {
+            it.map {
+                it.toStation()
+            }
+        }
+    }
+
     override suspend fun createStation(station: Station): Long {
         return dao.insertStation(station.toEntity())
     }
@@ -37,6 +48,10 @@ class StationRepositoryImpl @Inject constructor(
                 it.toDomain()
             }
         }
+    }
+
+    override fun getStationWithChargers(): Flow<List<StationWithChargers>> {
+        return dao.getStationWithChargers()
     }
 
     override suspend fun createCharger(charger: Charger): Long {

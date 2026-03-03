@@ -6,6 +6,8 @@ import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.data.local.database.entities.UserEntity
 import com.example.fse_project.data.local.database.entities.VehicleEntity
 import com.example.fse_project.data.local.database.entities.WalletEntity
+import com.example.fse_project.data.local.database.relations.StationWithChargers
+import com.example.fse_project.data.local.database.relations.UserWithVehiclesAndWallet
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
@@ -16,7 +18,9 @@ import com.example.fse_project.domain.model.Wallet
 fun UserEntity.toDomain(): User = User(
     id = id,
     name = name,
-    email = email
+    email = email,
+    vehicles = emptyList(),
+    wallet = Wallet(-1,0.0)
 )
 
 fun User.toEntity(): UserEntity = UserEntity(
@@ -24,6 +28,16 @@ fun User.toEntity(): UserEntity = UserEntity(
     name = name,
     email = email
 )
+
+fun UserWithVehiclesAndWallet.toDomain() : User{
+    return User(
+        id = this.user.id,
+        name = this.user.name,
+        email = this.user.email,
+        vehicles = this.vehicles,
+        wallet = this.wallet
+    )
+}
 
 // --- Vehicle Mapper ---
 fun VehicleEntity.toDomain(): Vehicle = Vehicle(
@@ -73,7 +87,8 @@ fun StationEntity.toDomain(): Station = Station(
     name = name,
     latitude = latitude,
     longitude = longitude,
-    address = address
+    address = address,
+    chargers = emptyList()
 )
 
 fun Station.toEntity(): StationEntity = StationEntity(
@@ -83,6 +98,17 @@ fun Station.toEntity(): StationEntity = StationEntity(
     longitude = longitude,
     address = address
 )
+
+fun StationWithChargers.toStation() : Station{
+    return Station(
+        id = this.station.id,
+        name = this.station.name,
+        latitude = this.station.latitude,
+        longitude = this.station.longitude,
+        address = this.station.address,
+        chargers = this.chargers.map { it.toDomain() }
+    )
+}
 
 // --- Reservation Mapper ---
 fun ReservationEntity.toDomain(): Reservation = Reservation(

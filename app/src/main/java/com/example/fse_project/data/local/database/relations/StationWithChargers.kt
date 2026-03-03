@@ -2,6 +2,7 @@ package com.example.fse_project.data.local.database.relations
 
 import androidx.room.Embedded
 import androidx.room.Relation
+import com.example.fse_project.data.local.database.entities.ChargerEntity
 import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.domain.model.Charger
 
@@ -13,5 +14,5 @@ data class StationWithChargers(
         parentColumn = "id",
         entityColumn = "stationOwnerId"
     )
-    val chargers : List<Charger>
+    val chargers : List<ChargerEntity>
 )
