@@ -16,11 +16,11 @@ data class UserWithVehiclesAndWallet(
         parentColumn = "id",
         entityColumn = "ownerId"
     )
-    val vehicles : List<Vehicle>,
+    val vehicles : List<VehicleEntity>,
 
     @Relation(
         parentColumn = "id",
         entityColumn = "userId"
     )
-    val wallet : Wallet
+    val wallet : WalletEntity
 )

@@ -6,6 +6,7 @@ import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.data.local.database.entities.UserEntity
 import com.example.fse_project.data.local.database.entities.VehicleEntity
 import com.example.fse_project.data.local.database.entities.WalletEntity
+import com.example.fse_project.data.local.database.relations.ReservationWithDetails
 import com.example.fse_project.data.local.database.relations.StationWithChargers
 import com.example.fse_project.data.local.database.relations.UserWithVehiclesAndWallet
 import com.example.fse_project.domain.model.Charger
@@ -34,8 +35,8 @@ fun UserWithVehiclesAndWallet.toDomain() : User{
         id = this.user.id,
         name = this.user.name,
         email = this.user.email,
-        vehicles = this.vehicles,
-        wallet = this.wallet
+        vehicles = this.vehicles.map { it.toDomain() },
+        wallet = this.wallet.toDomain()
     )
 }
 
@@ -110,28 +111,31 @@ fun StationWithChargers.toStation() : Station{
     )
 }
 
-// --- Reservation Mapper ---
-fun ReservationEntity.toDomain(): Reservation = Reservation(
+fun Reservation.toEntity(): ReservationEntity = ReservationEntity(
     id = id,
-    userId = userId,
-    vehicleId = vehicleId,
-    chargerId = chargerId,
+    userId = user.id,
+    vehicleId = vehicle.id,
+    stationId = station.id,
+    chargerId = charger.id,
     startTime = startTime,
     endTime = endTime,
     pricePerKwh = pricePerKwh,
     status = status
 )
 
-fun Reservation.toEntity(): ReservationEntity = ReservationEntity(
-    id = id,
-    userId = userId,
-    vehicleId = vehicleId,
-    chargerId = chargerId,
-    startTime = startTime,
-    endTime = endTime,
-    pricePerKwh = pricePerKwh,
-    status = status
-)
+fun ReservationWithDetails.toReservation() : Reservation{
+    return Reservation(
+        id = this.reservation.id,
+        user = this.user.toDomain(),
+        vehicle = this.vehicle.toDomain(),
+        station = this.station.toDomain(),
+        charger = this.charger.toDomain(),
+        startTime = this.reservation.startTime,
+        endTime = this.reservation.endTime,
+        pricePerKwh = this.reservation.pricePerKwh,
+        status = this.reservation.status
+    )
+}
 
 // --- Wallet Mapper ---
 fun WalletEntity.toDomain(): Wallet = Wallet(

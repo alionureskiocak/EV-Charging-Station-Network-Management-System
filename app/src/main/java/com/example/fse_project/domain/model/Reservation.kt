@@ -5,9 +5,10 @@ import java.time.LocalDateTime
 
 data class Reservation(
     val id : Long,
-    val userId : Long, //user
-    val vehicleId : Long, //vehicle
-    val chargerId : Long, //charger
+    val user : User,
+    val vehicle : Vehicle, //vehicle
+    val station : Station, //station
+    val charger : Charger, //charger
     val startTime : LocalDateTime,
     val endTime : LocalDateTime,
     val pricePerKwh : Double,
