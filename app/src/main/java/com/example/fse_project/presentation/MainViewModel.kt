@@ -21,7 +21,24 @@ class MainViewModel @Inject constructor(
 ) : ViewModel() {
 
     init {
+        //denemeVerileriniEkle()
+    }
 
+    val stations = repo.getStations()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Lazily,
+            emptyList()
+        )
+
+    fun updateChargerStatus(id : Long,status : ChargerStatus){
+        viewModelScope.launch {
+            repo.updateChargerStatus(id,status)
+        }
+    }
+
+
+    fun denemeVerileriniEkle() {
         val c1 = Charger(
             id = 1,
             stationOwnerId = 1,
@@ -113,8 +130,8 @@ class MainViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            //repo.createStation(station1)
-            //repo.createStation(station2)
+            repo.createStation(station1)
+            repo.createStation(station2)
             //repo.createCharger(c1)
             //repo.createCharger(c2)
             //repo.createCharger(c3)
@@ -126,12 +143,5 @@ class MainViewModel @Inject constructor(
 
         }
     }
-
-    val stations = repo.getStationDomainModels()
-        .stateIn(
-            viewModelScope,
-            SharingStarted.Lazily,
-            emptyList()
-        )
 }
 

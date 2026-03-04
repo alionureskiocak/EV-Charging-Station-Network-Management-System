@@ -22,7 +22,7 @@ class UserRepositoryImpl @Inject constructor(
         return dao.insertUser(user.toEntity())
     }
 
-    override fun getUsersWithVehiclesAndWallet(): Flow<List<User>> {
+    override fun getUsers(): Flow<List<User>> {
         return dao.getUsersWithVehiclesAndWallet().map {
             it.map {
                 it.toDomain()

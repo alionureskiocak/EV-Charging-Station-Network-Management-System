@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import com.example.fse_project.data.local.database.entities.ChargerEntity
+import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ReservationEntity
 import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.data.local.database.entities.StationEntity
@@ -117,6 +118,9 @@ interface AppDao {
 
     @Query("SELECT * FROM chargers")
     fun getChargers(): Flow<List<ChargerEntity>>
+
+    @Query("UPDATE chargers SET chargerStatus = :newStatus WHERE id = :chargerId")
+    suspend fun updateChargerStatus(chargerId : Long, newStatus : ChargerStatus)
 
 
     ///////////// RESERVATION ////////////////////////////

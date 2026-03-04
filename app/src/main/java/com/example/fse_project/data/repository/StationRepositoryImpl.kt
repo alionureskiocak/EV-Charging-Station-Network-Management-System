@@ -1,6 +1,7 @@
 package com.example.fse_project.data.repository
 
 import com.example.fse_project.data.local.database.AppDao
+import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.relations.StationWithChargers
 import com.example.fse_project.data.mapper.toDomain
 import com.example.fse_project.data.mapper.toEntity
@@ -50,8 +51,17 @@ class StationRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getStationWithChargers(): Flow<List<StationWithChargers>> {
-        return dao.getStationWithChargers()
+    override fun getStations(): Flow<List<Station>> {
+        return dao.getStationWithChargers().map {
+            it.map { it.toStation() }
+        }
+    }
+
+    override suspend fun updateChargerStatus(
+        id: Long,
+        status: ChargerStatus
+    ) {
+        dao.updateChargerStatus(id,status)
     }
 
     override suspend fun createCharger(charger: Charger): Long {
