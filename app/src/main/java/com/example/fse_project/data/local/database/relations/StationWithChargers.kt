@@ -11,8 +11,8 @@ data class StationWithChargers(
     val station : StationEntity,
 
     @Relation(
-        parentColumn = "stationOwnerId",
-        entityColumn = "id"
+        parentColumn = "id",
+        entityColumn = "stationOwnerId"
     )
     val chargers : List<ChargerEntity>
 )

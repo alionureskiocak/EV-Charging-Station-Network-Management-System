@@ -31,11 +31,11 @@ class ReservationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getReservationById(reservationId: Int): Reservation {
-        return dao.getReservationById(reservationId).toDomain()
+        return dao.getReservationDetailsById(reservationId).toDomain()
     }
 
     override fun getAllReservations(): Flow<List<Reservation>> {
-        return dao.getReservations().map {
+        return dao.getAllReservations().map {
             it.map {
                 it.toDomain()
             }
@@ -43,7 +43,7 @@ class ReservationRepositoryImpl @Inject constructor(
     }
 
     override fun getAllReservationsByUserId(userId: Int): Flow<List<Reservation>> {
-        return dao.getReservationsByUserId(userId).map {
+        return dao.getReservationDetailsByUserId(userId).map {
             it.map {
                 it.toDomain()
             }
@@ -51,7 +51,7 @@ class ReservationRepositoryImpl @Inject constructor(
     }
 
     override fun getAllReservationsByVehicleId(vehicleId: Int): Flow<List<Reservation>> {
-        return dao.getReservationsByVehicleId(vehicleId).map {
+        return dao.getReservationDetailsByVehicleId(vehicleId).map {
             it.map {
                 it.toDomain()
             }
@@ -59,7 +59,7 @@ class ReservationRepositoryImpl @Inject constructor(
     }
 
     override fun getAllReservationsByChargerId(chargerId: Int): Flow<List<Reservation>> {
-        return dao.getReservationsByChargerId(chargerId).map {
+        return dao.getReservationDetailsByChargerId(chargerId).map {
             it.map {
                 it.toDomain()
             }

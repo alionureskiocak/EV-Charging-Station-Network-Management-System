@@ -123,7 +123,8 @@ fun Reservation.toEntity(): ReservationEntity = ReservationEntity(
     status = status
 )
 
-fun ReservationWithDetails.toReservation() : Reservation{
+
+fun ReservationWithDetails.toDomain() : Reservation{
     return Reservation(
         id = this.reservation.id,
         user = this.user.toDomain(),

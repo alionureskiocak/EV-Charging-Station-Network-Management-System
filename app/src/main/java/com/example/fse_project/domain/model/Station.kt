@@ -8,7 +8,7 @@ data class Station(
     val latitude : Double,
     val longitude : Double,
     val address : String,
-    val chargers : List<Charger>,
+    val chargers : List<Charger> = emptyList(),
 ){
     val status : StationStatus
         get(){
