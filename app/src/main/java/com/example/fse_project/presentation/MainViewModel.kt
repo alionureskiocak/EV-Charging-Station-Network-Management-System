@@ -8,34 +8,39 @@ import com.example.fse_project.data.local.database.entities.ConnectorType
 import com.example.fse_project.data.local.database.entities.PowerOutput
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Station
+import com.example.fse_project.domain.model.User
+import com.example.fse_project.domain.model.Wallet
+import com.example.fse_project.domain.repository.ReservationRepository
 import com.example.fse_project.domain.repository.StationRepository
+import com.example.fse_project.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val repo: StationRepository
+    private val userRepo: UserRepository,
+    private val stationRepo : StationRepository,
+    private val reservationRepo : ReservationRepository
 ) : ViewModel() {
 
     init {
         //denemeVerileriniEkle()
     }
 
-    val stations = repo.getStations()
-        .stateIn(
-            viewModelScope,
-            SharingStarted.Lazily,
-            emptyList()
-        )
+    private val _state = MutableStateFlow(UiState())
+    val state = _state.asStateFlow()
 
-    fun updateChargerStatus(id : Long,status : ChargerStatus){
+    fun getUserProfile(){
         viewModelScope.launch {
-            repo.updateChargerStatus(id,status)
+            val user = userRepo.getUserProfile()
         }
     }
+
+
+
 
 
     fun denemeVerileriniEkle() {
@@ -130,8 +135,8 @@ class MainViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            repo.createStation(station1)
-            repo.createStation(station2)
+            repository.createStation(station1)
+            repository.createStation(station2)
             //repo.createCharger(c1)
             //repo.createCharger(c2)
             //repo.createCharger(c3)
@@ -144,4 +149,22 @@ class MainViewModel @Inject constructor(
         }
     }
 }
+
+data class UiState(
+    val currentUser : User = User(
+        id = -1,
+        name = "",
+        email = "",
+        vehicles = emptyList(),
+        wallet = Wallet(userId = -1, balance = 0.0)
+    ),
+    val currentStation : Station = Station(
+        id = -1,
+        name = "",
+        latitude = 0.0,
+        longitude = 0.0,
+        address = "",
+        chargers = emptyList()
+    )
+)
 

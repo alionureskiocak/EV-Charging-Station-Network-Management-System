@@ -5,8 +5,12 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.fse_project.data.local.database.AppDao
 import com.example.fse_project.data.local.database.AppDatabase
+import com.example.fse_project.data.repository.ReservationRepositoryImpl
 import com.example.fse_project.data.repository.StationRepositoryImpl
+import com.example.fse_project.data.repository.UserRepositoryImpl
+import com.example.fse_project.domain.repository.ReservationRepository
 import com.example.fse_project.domain.repository.StationRepository
+import com.example.fse_project.domain.repository.UserRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,4 +37,11 @@ object AppModule {
 
     @Singleton @Provides
     fun provideStationRepository(dao : AppDao) : StationRepository = StationRepositoryImpl(dao)
+
+    @Singleton @Provides
+    fun provideUserRepository(dao : AppDao) : UserRepository = UserRepositoryImpl(dao)
+
+    @Singleton @Provides
+    fun provideReservationRepository(dao : AppDao) : ReservationRepository =
+        ReservationRepositoryImpl(dao)
 }

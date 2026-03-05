@@ -20,6 +20,7 @@ fun UserEntity.toDomain(): User = User(
     id = id,
     name = name,
     email = email,
+    password = password,
     vehicles = emptyList(),
     wallet = Wallet(-1,0.0)
 )
@@ -27,7 +28,8 @@ fun UserEntity.toDomain(): User = User(
 fun User.toEntity(): UserEntity = UserEntity(
     id = id,
     name = name,
-    email = email
+    email = email,
+    password = password,
 )
 
 fun UserWithVehiclesAndWallet.toDomain() : User{
@@ -35,6 +37,7 @@ fun UserWithVehiclesAndWallet.toDomain() : User{
         id = this.user.id,
         name = this.user.name,
         email = this.user.email,
+        password = this.user.password,
         vehicles = this.vehicles.map { it.toDomain() },
         wallet = this.wallet.toDomain()
     )
