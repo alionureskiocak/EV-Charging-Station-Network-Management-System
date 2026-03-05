@@ -34,7 +34,7 @@ class UserRepositoryImpl @Inject constructor(
         dao.deleteUser(userId)
     }
 
-    override suspend fun getUserProfile(userId: Int): User {
+    override suspend fun getUserProfile(userId: Long): User {
         return dao.getUserById(userId).toDomain()
     }
 

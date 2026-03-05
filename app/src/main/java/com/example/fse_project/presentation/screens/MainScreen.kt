@@ -1,7 +1,6 @@
-package com.example.fse_project.presentation
+package com.example.fse_project.presentation.screens
 
 import android.Manifest
-import android.R
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -18,6 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fse_project.UserMarker
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.domain.model.StationStatus
+import com.example.fse_project.presentation.viewmodel.MainViewModel
 import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory

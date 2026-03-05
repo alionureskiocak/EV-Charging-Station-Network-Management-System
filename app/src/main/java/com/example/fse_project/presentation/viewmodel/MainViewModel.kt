@@ -1,5 +1,6 @@
-package com.example.fse_project.presentation
+package com.example.fse_project.presentation.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fse_project.data.local.database.entities.ChargerStatus
@@ -23,7 +24,8 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     private val userRepo: UserRepository,
     private val stationRepo : StationRepository,
-    private val reservationRepo : ReservationRepository
+    private val reservationRepo : ReservationRepository,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     init {
@@ -33,9 +35,11 @@ class MainViewModel @Inject constructor(
     private val _state = MutableStateFlow(UiState())
     val state = _state.asStateFlow()
 
+    val userId = savedStateHandle.get<Long>("userId")!!
+
     fun getUserProfile(){
         viewModelScope.launch {
-            val user = userRepo.getUserProfile()
+            val user = userRepo.getUserProfile(userId)
         }
     }
 
@@ -135,8 +139,8 @@ class MainViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            repository.createStation(station1)
-            repository.createStation(station2)
+            stationRepo.createStation(station1)
+            stationRepo.createStation(station2)
             //repo.createCharger(c1)
             //repo.createCharger(c2)
             //repo.createCharger(c3)
@@ -155,8 +159,10 @@ data class UiState(
         id = -1,
         name = "",
         email = "",
+        password = "",
         vehicles = emptyList(),
-        wallet = Wallet(userId = -1, balance = 0.0)
+        wallet = Wallet(userId = -1, balance = 0.0),
+
     ),
     val currentStation : Station = Station(
         id = -1,
