@@ -25,9 +25,10 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createUser(user: User): Long {
-        val wallet = WalletEntity(user.id,0.0)
+        val id = dao.insertUser(user.toEntity())
+        val wallet = WalletEntity(id,0.0)
         dao.insertWallet(wallet)
-        return dao.insertUser(user.toEntity())
+        return id
     }
 
     override fun getUsers(): Flow<List<User>> {

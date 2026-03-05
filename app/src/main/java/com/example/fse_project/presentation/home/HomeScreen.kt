@@ -3,7 +3,12 @@ package com.example.fse_project.presentation.home
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.maps.MapsInitializer
@@ -14,6 +19,18 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 fun MainScreen(
      viewModel: MainViewModel = hiltViewModel()
 ) {
+
+    val state by viewModel.state.collectAsState()
+    val currentUser = state.currentUser
+    println(currentUser)
+    Surface(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Text(currentUser.name, fontSize = 32.sp)
+    }
+
+
+
     /*
     val stations by viewModel.stations.collectAsState()
     println(stations)
@@ -136,11 +153,6 @@ fun MainScreen(
 
 */
 }
-
-
-
-
-
 
 fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
     MapsInitializer.initialize(context)

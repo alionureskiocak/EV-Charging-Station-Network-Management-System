@@ -50,7 +50,11 @@ class LoginViewModel @Inject constructor(
                 email = email,
                 password = password
             )
-            repository.createUser(user)
+            val id = repository.createUser(user)
+            _state.value = _state.value.copy(
+                isLoginSuccessful = true
+            )
+            setUserId(id)
         }
     }
 
@@ -62,7 +66,7 @@ class LoginViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     isLoginSuccessful = true
                 )
-                sessionManager.setUserId(user!!.id)
+                setUserId(user!!.id)
             }else{
                 _effect.emit(LoginEffect.ShowToast("Wrong username/password"))
 
@@ -70,6 +74,12 @@ class LoginViewModel @Inject constructor(
 
         }
 
+    }
+
+    fun setUserId(id : Long){
+        viewModelScope.launch {
+            sessionManager.setUserId(id)
+        }
     }
 }
 

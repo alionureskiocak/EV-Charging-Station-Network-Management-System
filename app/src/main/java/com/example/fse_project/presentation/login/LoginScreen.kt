@@ -53,14 +53,14 @@ fun LoginScreen(navController: NavController,viewModel: LoginViewModel = hiltVie
     }
 
     if(showLoginDialog){
-        SignUpAlertDialog(
+        LoginAlertDialog(
             onDismiss = {showLoginDialog = false},
             viewModel = viewModel
         )
     }
 
     if(showSignUpDialog){
-        LoginAlertDialog(
+        SignUpAlertDialog(
             onDismiss = {showSignUpDialog = false},
             viewModel = viewModel
         )

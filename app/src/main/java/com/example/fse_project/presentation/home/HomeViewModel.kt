@@ -3,6 +3,7 @@ package com.example.fse_project.presentation.home
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.fse_project.data.datastore.SessionManager
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ChargerType
 import com.example.fse_project.data.local.database.entities.ConnectorType
@@ -16,7 +17,12 @@ import com.example.fse_project.domain.repository.StationRepository
 import com.example.fse_project.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,27 +31,32 @@ class MainViewModel @Inject constructor(
     private val userRepo: UserRepository,
     private val stationRepo : StationRepository,
     private val reservationRepo : ReservationRepository,
+    private val sessionManager: SessionManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     init {
         //denemeVerileriniEkle()
+        getUserProfile()
     }
 
     private val _state = MutableStateFlow(UiState())
     val state = _state.asStateFlow()
 
-    val userId = savedStateHandle.get<Long>("userId")!!
+
 
     fun getUserProfile(){
         viewModelScope.launch {
-            val user = userRepo.getUserProfile(userId)
+            sessionManager.currentUserId
+                .filterNotNull()
+                .collectLatest {
+                    val user = userRepo.getUserProfile(it)
+                    _state.value = _state.value.copy(
+                        currentUser = user
+                    )
+                }
         }
     }
-
-
-
-
 
     fun denemeVerileriniEkle() {
         val c1 = Charger(

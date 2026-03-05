@@ -27,9 +27,7 @@ class MainActivity : ComponentActivity() {
                 composable(Screen.LoginScreen.route) {
                     LoginScreen(navController)
                 }
-                composable(Screen.MainScreen.route, arguments = listOf(
-                    navArgument("userId") { type = NavType.LongType }
-                )) {
+                composable(Screen.MainScreen.route){
                     MainScreen()
                 }
             }
