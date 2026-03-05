@@ -16,6 +16,14 @@ import javax.inject.Singleton
 class UserRepositoryImpl @Inject constructor(
     private val dao : AppDao
 ) : UserRepository{
+    override suspend fun login(
+        email: String,
+        password: String
+    ): User? {
+        val userEntity = dao.login(email,password)
+        return userEntity?.toDomain()
+    }
+
     override suspend fun createUser(user: User): Long {
         val wallet = WalletEntity(user.id,0.0)
         dao.insertWallet(wallet)

@@ -25,6 +25,9 @@ interface AppDao {
     @Insert
     suspend fun insertUser(userEntity: UserEntity): Long
 
+    @Query("SELECT * FROM users WHERE email = :email AND password = :password")
+    suspend fun login(email : String, password : String) : UserEntity?
+
     @Query("DELETE FROM users WHERE id = :userId")
     suspend fun deleteUser(userId: Int)
 

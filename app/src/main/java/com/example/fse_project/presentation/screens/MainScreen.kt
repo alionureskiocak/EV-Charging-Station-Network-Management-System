@@ -33,7 +33,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 fun MainScreen(
      viewModel: MainViewModel = hiltViewModel()
 ) {
-
+    /*
     val stations by viewModel.stations.collectAsState()
     println(stations)
     if(stations.isNotEmpty()) {
@@ -153,7 +153,7 @@ fun MainScreen(
 
 
 
-
+*/
 }
 
 

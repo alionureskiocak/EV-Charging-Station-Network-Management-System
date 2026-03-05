@@ -5,6 +5,6 @@ data class User(
     val name: String,
     val email: String,
     val password : String,
-    val vehicles : List<Vehicle>,
-    val wallet : Wallet
+    val vehicles : List<Vehicle> = emptyList(),
+    val wallet : Wallet = Wallet(0,0.0)
 )
