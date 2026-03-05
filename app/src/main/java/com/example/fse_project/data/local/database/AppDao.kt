@@ -32,7 +32,7 @@ interface AppDao {
     suspend fun deleteUser(userId: Int)
 
     @Query("SELECT * FROM users WHERE id = :userId")
-    suspend fun getUserById(userId: Long): UserEntity
+    suspend fun getUserById(userId: Long): UserWithVehiclesAndWallet
 
     @Query("SELECT * FROM users")
     fun getUsers(): Flow<List<UserEntity>>

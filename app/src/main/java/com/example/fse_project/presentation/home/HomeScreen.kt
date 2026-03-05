@@ -22,7 +22,7 @@ fun MainScreen(
 
     val state by viewModel.state.collectAsState()
     val currentUser = state.currentUser
-    println(currentUser)
+    println(currentUser.wallet.userId)
     Surface(
         modifier = Modifier.fillMaxSize()
     ) {

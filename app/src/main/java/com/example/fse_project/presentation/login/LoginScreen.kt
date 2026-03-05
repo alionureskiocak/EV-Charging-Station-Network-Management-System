@@ -136,7 +136,7 @@ fun SignUpAlertDialog(onDismiss : () -> Unit,viewModel: LoginViewModel) {
     AlertDialog(
         onDismissRequest = {onDismiss()},
         title = {
-            Text(text = "Login",fontSize = 16.sp)
+            Text(text = "Sign Up",fontSize = 16.sp)
         },
         text = {
             Column {
@@ -149,7 +149,7 @@ fun SignUpAlertDialog(onDismiss : () -> Unit,viewModel: LoginViewModel) {
             Button(onClick = {
                 viewModel.signUp(nameText,emailText,passwordText)
             }) {
-                Text(text = "Login", fontSize = 16.sp)
+                Text(text = "Sign Up", fontSize = 16.sp)
             }
         },
         dismissButton = {
