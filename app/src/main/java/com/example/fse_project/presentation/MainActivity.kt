@@ -10,8 +10,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.fse_project.presentation.navigation.Screen
-import com.example.fse_project.presentation.screens.LoginScreen
-import com.example.fse_project.presentation.screens.MainScreen
+import com.example.fse_project.presentation.login.LoginScreen
+import com.example.fse_project.presentation.home.MainScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

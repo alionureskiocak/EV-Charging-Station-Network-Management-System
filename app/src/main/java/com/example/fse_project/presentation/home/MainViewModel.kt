@@ -1,4 +1,4 @@
-package com.example.fse_project.presentation.viewmodel
+package com.example.fse_project.presentation.home
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel

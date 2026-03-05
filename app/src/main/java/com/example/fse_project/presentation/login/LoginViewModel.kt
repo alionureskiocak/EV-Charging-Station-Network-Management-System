@@ -1,21 +1,17 @@
-package com.example.fse_project.presentation.viewmodel
+package com.example.fse_project.presentation.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.extensions.isNotNull
 import com.example.fse_project.data.datastore.SessionManager
 import com.example.fse_project.domain.model.User
-import com.example.fse_project.domain.model.Vehicle
-import com.example.fse_project.domain.model.Wallet
 import com.example.fse_project.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.forEach
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.metadata.internal.metadata.serialization.StringTable
 import javax.inject.Inject
 
 @HiltViewModel
@@ -27,6 +23,9 @@ class LoginViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(LoginUiState())
     val state = _state.asStateFlow()
+
+    private val _effect = MutableSharedFlow<LoginEffect>()
+    val effect = _effect.asSharedFlow()
 
 
     fun getUsers(){
@@ -46,7 +45,7 @@ class LoginViewModel @Inject constructor(
     ){
         viewModelScope.launch {
             val user = User(
-                id = -1,
+                id = 0,
                 name = name,
                 email = email,
                 password = password
@@ -65,9 +64,8 @@ class LoginViewModel @Inject constructor(
                 )
                 sessionManager.setUserId(user!!.id)
             }else{
-                _state.value = _state.value.copy(
-                    error = "Wrong username/password"
-                )
+                _effect.emit(LoginEffect.ShowToast("Wrong username/password"))
+
             }
 
         }
