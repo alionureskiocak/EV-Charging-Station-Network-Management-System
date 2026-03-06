@@ -9,19 +9,19 @@ interface UserRepository {
     //user,vehicle,wallet
 
     suspend fun createUser(user: User) : Long
-    suspend fun deleteUser(userId : Int)
-    suspend fun getUserProfile(userId : Long) : User
+    suspend fun deleteUser(userId : Long)
+    suspend fun getUserProfile(userId : Long) : User?
     suspend fun getAllUsers() : Flow<List<User>>
     suspend fun login(email : String, password : String) : User?
 
     fun getUsers() : Flow<List<User>>
 
     suspend fun createVehicle(vehicle: Vehicle) : Long
-    suspend fun deleteVehicle(vehicleId : Int)
-    suspend fun getVehicleById(vehicleId : Int) : Vehicle
+    suspend fun deleteVehicle(vehicleId : Long)
+    suspend fun getVehicleById(vehicleId : Long) : Vehicle
     fun getAllVehicles() : Flow<List<Vehicle>>
-    fun getVehiclesByUserId(userId : Int) : Flow<List<Vehicle>>
+    fun getVehiclesByUserId(userId : Long) : Flow<List<Vehicle>>
 
-    suspend fun updateWallet(userId: Int, balance : Double)
+    suspend fun updateWallet(userId: Long, balance : Double)
 
 }

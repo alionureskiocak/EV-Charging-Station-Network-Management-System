@@ -1,5 +1,6 @@
 package com.example.fse_project.data.repository
 
+import co.yml.charts.common.extensions.isNotNull
 import com.example.fse_project.data.local.database.AppDao
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.relations.StationWithChargers
@@ -28,18 +29,31 @@ class StationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createStation(station: Station): Long {
-        return dao.insertStation(station.toEntity())
+        val stationId =  dao.insertStation(station.toEntity())
+
+        val chargers = station.chargers.map {
+            it.toEntity().copy(
+                id = 0,
+                stationOwnerId = stationId
+            )
+        }
+        if (chargers.isNotEmpty()){
+            chargers.forEach { charger ->
+                dao.insertCharger(charger)
+            }
+        }
+        return stationId
     }
 
-    override suspend fun deleteStation(stationId : Int) {
+    override suspend fun deleteStation(stationId : Long) {
         dao.deleteStation(stationId)
     }
 
-    override suspend fun getStationById(stationId: Int): Station {
+    override suspend fun getStationById(stationId: Long): Station {
         return dao.getStationById(stationId).toDomain()
     }
 
-    override suspend fun getStationByChargerId(chargerId: Int): Station {
+    override suspend fun getStationByChargerId(chargerId: Long): Station {
         return dao.getStationByChargerId(chargerId).toDomain()
     }
 
@@ -68,15 +82,15 @@ class StationRepositoryImpl @Inject constructor(
         return dao.insertCharger(charger.toEntity())
     }
 
-    override suspend fun deleteCharger(chargerId : Int) {
+    override suspend fun deleteCharger(chargerId : Long) {
         dao.deleteCharger(chargerId)
     }
 
-    override suspend fun getChargerById(chargerId: Int): Charger {
+    override suspend fun getChargerById(chargerId: Long): Charger {
         return dao.getChargerById(chargerId).toDomain()
     }
 
-    override fun getChargersByStation(stationId: Int): Flow<List<Charger>> {
+    override fun getChargersByStation(stationId: Long): Flow<List<Charger>> {
         return dao.getChargersByStation(stationId).map {
             it.map {
                 it.toDomain()

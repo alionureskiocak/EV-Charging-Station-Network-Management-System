@@ -19,18 +19,18 @@ class ReservationRepositoryImpl @Inject constructor(
         return dao.insertReservation(reservation.toEntity())
     }
 
-    override suspend fun deleteReservation(reservationId: Int) {
+    override suspend fun deleteReservation(reservationId: Long) {
        dao.deleteReservation(reservationId)
     }
 
     override suspend fun updateReservationStatus(
-        reservationId: Int,
+        reservationId: Long,
         newStatus: ReservationStatus
     ) {
         dao.updateReservationStatus(reservationId,newStatus)
     }
 
-    override suspend fun getReservationById(reservationId: Int): Reservation {
+    override suspend fun getReservationById(reservationId: Long): Reservation {
         return dao.getReservationDetailsById(reservationId).toDomain()
     }
 
@@ -42,7 +42,7 @@ class ReservationRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getAllReservationsByUserId(userId: Int): Flow<List<Reservation>> {
+    override fun getAllReservationsByUserId(userId: Long): Flow<List<Reservation>> {
         return dao.getReservationDetailsByUserId(userId).map {
             it.map {
                 it.toDomain()
@@ -50,7 +50,7 @@ class ReservationRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getAllReservationsByVehicleId(vehicleId: Int): Flow<List<Reservation>> {
+    override fun getAllReservationsByVehicleId(vehicleId: Long): Flow<List<Reservation>> {
         return dao.getReservationDetailsByVehicleId(vehicleId).map {
             it.map {
                 it.toDomain()
@@ -58,7 +58,7 @@ class ReservationRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getAllReservationsByChargerId(chargerId: Int): Flow<List<Reservation>> {
+    override fun getAllReservationsByChargerId(chargerId: Long): Flow<List<Reservation>> {
         return dao.getReservationDetailsByChargerId(chargerId).map {
             it.map {
                 it.toDomain()

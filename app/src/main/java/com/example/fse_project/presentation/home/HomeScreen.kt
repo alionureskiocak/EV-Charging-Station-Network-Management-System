@@ -1,19 +1,38 @@
 package com.example.fse_project.presentation.home
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fse_project.UserMarker
+import com.example.fse_project.data.local.database.entities.ChargerStatus
+import com.example.fse_project.domain.model.StationStatus
 import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
+import android.Manifest
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
 
 @Composable
 fun MainScreen(
@@ -21,74 +40,44 @@ fun MainScreen(
 ) {
 
     val state by viewModel.state.collectAsState()
+
     val currentUser = state.currentUser
-    println(currentUser.wallet.userId)
-    Surface(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Text(currentUser.name, fontSize = 32.sp)
-    }
+    val reservations = state.usersReservations
 
-
-
-    /*
-    val stations by viewModel.stations.collectAsState()
-    println(stations)
-    if(stations.isNotEmpty()) {
-        val firstChargers = stations.first().chargers
-        firstChargers.forEach {
-            viewModel.updateChargerStatus(it.id, ChargerStatus.OCCUPIED)
-        }
-    }
-
-
+    val stations = state.allStations
 
     val izmir = LatLng(38.4237, 27.1428)
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(izmir, 12f)
-    }
-    val context = LocalContext.current
-
-    var hasLocationPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        )
+        position = CameraPosition.fromLatLngZoom(izmir, 10f)
     }
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            hasLocationPermission = isGranted
-        }
-    )
-
-    LaunchedEffect(key1 = true) {
-        if (!hasLocationPermission) {
-            launcher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-        }
+    var hasLocationPermission by remember { mutableStateOf(false) }
+    CheckPermission(){
+        hasLocationPermission = it
     }
 
     val properties by remember(hasLocationPermission) {
-        mutableStateOf(MapProperties(
-            isMyLocationEnabled = true
-        ))
+        mutableStateOf(
+            MapProperties(
+                isMyLocationEnabled = if (hasLocationPermission) true else false
+            )
+        )
     }
 
-    var list = remember { mutableStateListOf<UserMarker>() }
-    stations.forEach { station ->
-        list.add(UserMarker(
-            latLng = LatLng(station.latitude, station.longitude),
-            title = station.name,
-            color = if (station.status == StationStatus.AVAILABLE)
-               BitmapDescriptorFactory.HUE_GREEN
-            else if (station.status == StationStatus.OCCUPIED)
-                BitmapDescriptorFactory.HUE_YELLOW
-            else BitmapDescriptorFactory.HUE_RED
-        ))
+
+    val list = remember(stations) {
+        stations.map { station ->
+            UserMarker(
+                latLng = LatLng(station.latitude, station.longitude),
+                title = station.name,
+                color = when (station.status) {
+                    StationStatus.AVAILABLE -> BitmapDescriptorFactory.HUE_GREEN
+                    StationStatus.OCCUPIED -> BitmapDescriptorFactory.HUE_ORANGE
+                    else -> BitmapDescriptorFactory.HUE_RED
+                }
+            )
+        }
     }
 
     // val routePoints = listOf(izmir)
@@ -113,45 +102,79 @@ fun MainScreen(
     //    }
     //}
 
-    GoogleMap(
-        modifier = Modifier.fillMaxSize(),
-        cameraPositionState = cameraPositionState,
-        properties = properties,
-        onMapClick = { latLng ->
+    Box(modifier = Modifier.fillMaxSize()){
+        GoogleMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
+            properties = properties,
+            onMapClick = { latLng ->
+                currentUser?.let {
+                    println(currentUser.name)
+                }
+
+            }
+        ) {
+            // if (pathPoints.isNotEmpty()) {
+            //     Polyline(
+            //         points = pathPoints,
+            //         color = Color(0xFF2196F3), // Klasik Google Maps mavisi
+            //         width = 12f,
+            //         geodesic = true // Dünyanın eğriliğine göre hesapla
+            //     )
+            // }
+
+            stations.forEach { station ->
+
+                val color = when (station.status) {
+                    StationStatus.AVAILABLE -> BitmapDescriptorFactory.HUE_GREEN
+                    StationStatus.OCCUPIED -> BitmapDescriptorFactory.HUE_ORANGE
+                    else -> BitmapDescriptorFactory.HUE_RED
+                }
+
+                Marker(
+                    state = MarkerState(LatLng(station.latitude,station.longitude)),
+                    title = station.name,
+
+                    icon = BitmapDescriptorFactory.defaultMarker(color),
+                    onClick = {
+                        //bottomsheet
+
+                        true
+                    })
+            }
         }
-    ){
-       // if (pathPoints.isNotEmpty()) {
-       //     Polyline(
-       //         points = pathPoints,
-       //         color = Color(0xFF2196F3), // Klasik Google Maps mavisi
-       //         width = 12f,
-       //         geodesic = true // Dünyanın eğriliğine göre hesapla
-       //     )
-       // }
+    }
+}
 
-        list.forEach { userMarker ->
-            Marker(
-                state = MarkerState(userMarker.latLng),
-                title = userMarker.title,
-                icon = BitmapDescriptorFactory.defaultMarker(userMarker.color),
-                onClick = {
-                   // it.showInfoWindow()
-                   true // tıklanan yeri merkeze al
-                    list.remove(userMarker)
-                    true
-                },
-
-
-            )
-        }
-        println(stations)
-
-
+@Composable
+fun CheckPermission(onPermissionGranted: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
     }
 
 
+    LaunchedEffect(hasLocationPermission) {
+        onPermissionGranted(hasLocationPermission)
+    }
 
-*/
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            hasLocationPermission = isGranted
+        }
+    )
+
+    LaunchedEffect(key1 = true) {
+        if (!hasLocationPermission) {
+            launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
 }
 
 fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {

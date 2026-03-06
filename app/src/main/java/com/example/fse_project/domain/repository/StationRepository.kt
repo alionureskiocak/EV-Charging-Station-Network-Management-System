@@ -11,16 +11,16 @@ interface StationRepository {
     fun getStationDomainModels(): Flow<List<Station>>
 
     suspend fun createStation(station: Station) : Long
-    suspend fun deleteStation(stationId : Int)
-    suspend fun getStationById(stationId : Int) : Station
-    suspend fun getStationByChargerId(chargerId : Int) : Station
+    suspend fun deleteStation(stationId : Long)
+    suspend fun getStationById(stationId : Long) : Station
+    suspend fun getStationByChargerId(chargerId : Long) : Station
     fun getAllStations() : Flow<List<Station>>
     fun getStations() : Flow<List<Station>>
 
     suspend fun createCharger(charger: Charger) : Long
-    suspend fun deleteCharger(chargerId : Int)
-    suspend fun getChargerById(chargerId : Int) : Charger
-    fun getChargersByStation(stationId : Int) : Flow<List<Charger>>
+    suspend fun deleteCharger(chargerId : Long)
+    suspend fun getChargerById(chargerId : Long) : Charger
+    fun getChargersByStation(stationId : Long) : Flow<List<Charger>>
     fun getAllChargers() : Flow<List<Charger>>
     suspend fun updateChargerStatus(id : Long, status : ChargerStatus)
 }

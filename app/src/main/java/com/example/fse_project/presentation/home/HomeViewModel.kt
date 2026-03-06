@@ -4,184 +4,197 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fse_project.data.datastore.SessionManager
-import com.example.fse_project.data.local.database.entities.ChargerStatus
-import com.example.fse_project.data.local.database.entities.ChargerType
-import com.example.fse_project.data.local.database.entities.ConnectorType
-import com.example.fse_project.data.local.database.entities.PowerOutput
+import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.domain.model.Charger
+import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.User
-import com.example.fse_project.domain.model.Wallet
+import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.domain.repository.ReservationRepository
 import com.example.fse_project.domain.repository.StationRepository
 import com.example.fse_project.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.LocalTime
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val userRepo: UserRepository,
-    private val stationRepo : StationRepository,
-    private val reservationRepo : ReservationRepository,
+    private val stationRepo: StationRepository,
+    private val reservationRepo: ReservationRepository,
     private val sessionManager: SessionManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     init {
-        //denemeVerileriniEkle()
         getUserProfile()
+        getUsers()
+        getAllReservations()
+        getAllStations()
     }
 
-    private val _state = MutableStateFlow(UiState())
+    private val _state = MutableStateFlow(UiState(
+        currentUser = null,
+        currentStation = null,
+        currentReservation = null
+    ))
     val state = _state.asStateFlow()
 
 
+    fun getUsers(){
+        viewModelScope.launch {
+            userRepo.getUsers().collect {
+                _state.value = _state.value.copy(
+                    allUsers = it
+                )
+            }
+        }
+    }
 
-    fun getUserProfile(){
+    fun getAllReservations(){
+        viewModelScope.launch {
+            reservationRepo.getAllReservations().collect {
+                _state.value = _state.value.copy(
+                    allReservations = it
+                )
+            }
+        }
+    }
+
+    fun getAllStations(){
+        viewModelScope.launch {
+            stationRepo.getStations().collect {
+                _state.value = _state.value.copy(
+                    allStations = it
+                )
+            }
+        }
+    }
+
+    fun getUsersReservations(id : Long) {
+        viewModelScope.launch {
+            reservationRepo.getAllReservationsByUserId(id).collect {
+                _state.value = _state.value.copy(
+                    usersReservations = it
+                )
+            }
+        }
+    }
+
+
+    fun getUserProfile() {
         viewModelScope.launch {
             sessionManager.currentUserId
                 .filterNotNull()
-                .collectLatest {
-                    val user = userRepo.getUserProfile(it)
-                    _state.value = _state.value.copy(
-                        currentUser = user
-                    )
+                .collectLatest { userId ->
+                    val user = userRepo.getUserProfile(userId)
+                    if (user != null) {
+                        _state.value = _state.value.copy(
+                            currentUser = user
+                        )
+                        getUsersReservations(user.id)
+                    } else {
+                        println("Kullanıcı veritabanında bulunamadı!")
+                    }
                 }
         }
     }
 
-    fun denemeVerileriniEkle() {
-        val c1 = Charger(
-            id = 1,
-            stationOwnerId = 1,
-            chargerName = "S1C1",
-            chargerType = ChargerType.AC,
-            powerOutput = PowerOutput.KW_50,
-            connectorType = ConnectorType.CHADEMO,
-            chargerStatus = ChargerStatus.AVAILABLE
-        )
-        val c2 = Charger(
-            id = 2,
-            stationOwnerId = 1,
-            chargerName = "S1C2",
-            chargerType = ChargerType.DC,
-            powerOutput = PowerOutput.KW_22,
-            connectorType = ConnectorType.TYPE_2,
-            chargerStatus = ChargerStatus.AVAILABLE
-        )
-        val c3 = Charger(
-            id = 3,
-            stationOwnerId = 1,
-            chargerName = "S1C3",
-            chargerType = ChargerType.AC,
-            powerOutput = PowerOutput.KW_150,
-            connectorType = ConnectorType.CHADEMO,
-            chargerStatus = ChargerStatus.OCCUPIED
-        )
-        val c4 = Charger(
-            id = 4,
-            stationOwnerId = 1,
-            chargerName = "S1C4",
-            chargerType = ChargerType.DC,
-            powerOutput = PowerOutput.KW_22,
-            connectorType = ConnectorType.CCS,
-            chargerStatus = ChargerStatus.OFFLINE
-        )
-
-        val c5 = Charger(
-            id = 5,
-            stationOwnerId = 2,
-            chargerName = "S2C1",
-            chargerType = ChargerType.DC,
-            powerOutput = PowerOutput.KW_150,
-            connectorType = ConnectorType.TYPE_2,
-            chargerStatus = ChargerStatus.OFFLINE
-        )
-        val c6 = Charger(
-            id = 6,
-            stationOwnerId = 2,
-            chargerName = "S2C2",
-            chargerType = ChargerType.DC,
-            powerOutput = PowerOutput.KW_22,
-            connectorType = ConnectorType.TYPE_2,
-            chargerStatus = ChargerStatus.AVAILABLE
-        )
-        val c7 = Charger(
-            id = 7,
-            stationOwnerId = 2,
-            chargerName = "S2C3",
-            chargerType = ChargerType.AC,
-            powerOutput = PowerOutput.KW_50,
-            connectorType = ConnectorType.CCS,
-            chargerStatus = ChargerStatus.OCCUPIED
-        )
-        val c8 = Charger(
-            id = 8,
-            stationOwnerId = 2,
-            chargerName = "S2C4",
-            chargerType = ChargerType.DC,
-            powerOutput = PowerOutput.KW_22,
-            connectorType = ConnectorType.CCS,
-            chargerStatus = ChargerStatus.AVAILABLE
-        )
-
-        val station1 = Station(
-            id = 1,
-            name = "Bornova Charge",
-            latitude = 34.34,
-            longitude = 35.35,
-            address = "Bornova"
-        )
-
-        val station2 = Station(
-            id = 2,
-            name = "Karşıyaka Charge",
-            latitude = 37.37,
-            longitude = 38.38,
-            address = "Karşıyaka"
-        )
-
+    fun getChargerById(chargerId : Long){
         viewModelScope.launch {
-            stationRepo.createStation(station1)
-            stationRepo.createStation(station2)
-            //repo.createCharger(c1)
-            //repo.createCharger(c2)
-            //repo.createCharger(c3)
-            //repo.createCharger(c4)
-            //repo.createCharger(c5)
-            //repo.createCharger(c6)
-            //repo.createCharger(c7)
-            //repo.createCharger(c8)
-
+           _state.value = _state.value.copy(
+               currentCharger = stationRepo.getChargerById(chargerId)
+           )
         }
+    }
+
+    fun getChargersForStation(stationId : Long) : List<ChargerItem>{
+
+        //vehicle ve station alındıysa çağır
+        val currentStation = _state.value.allStations.find { it.id == stationId }
+        val currentVehicle = _state.value.currentVehicle
+
+        currentStation?.let {
+            currentVehicle?.let {
+
+                return currentStation.chargers.map { charger ->
+                    val clickable = charger.connectorType == currentVehicle.connectorType
+                    ChargerItem(charger = charger,clickable = clickable)
+            }
+        }
+        }
+
+        return emptyList()
+    }
+
+    fun getReservationTimeSlots(chargerId : Long, selectedDate : LocalDateTime = LocalDateTime.now()) : List<TimeSlot>{
+
+        val targetDates = listOf(
+            selectedDate.toLocalDate(),
+            selectedDate.toLocalDate().plusDays(1)
+        )
+
+        val allReservations = _state.value.allReservations.filter {
+            it.charger.id == chargerId &&
+                    it.status in listOf(ReservationStatus.AVAILABLE, ReservationStatus.ACTIVE) &&
+                    it.startTime.toLocalDate() in targetDates
+        }
+
+        val slots = mutableListOf<TimeSlot>()
+        val startHour = selectedDate.hour
+
+            for (hour in startHour..23){
+            val isOccupied = allReservations.any{ reservation ->
+                val startTime = reservation.startTime
+                val endTime = reservation.endTime
+                val time = LocalDateTime.of(selectedDate.toLocalDate(), LocalTime.of(hour, 0))
+                time.isBefore(endTime) && !time.isBefore(startTime)
+            }
+            slots.add(
+                TimeSlot(
+                    hour = hour,
+                    timeLabel = String.format("%02d:00", hour),
+                    isAvailable = !isOccupied
+                )
+            )
+        }
+
+        for (hour in 0 until startHour){
+            val isOccupied = allReservations.any{ reservation ->
+                val startTime = reservation.startTime
+                val endTime = reservation.endTime
+
+                val time = LocalDateTime.of(selectedDate.toLocalDate().plusDays(1), LocalTime.of(hour, 0))
+                time.isBefore(endTime) && !time.isBefore(startTime)
+            }
+            slots.add(
+                TimeSlot(
+                    hour = hour,
+                    timeLabel = String.format("%02d:00", hour),
+                    isAvailable = !isOccupied
+                )
+            )
+        }
+
+        return slots
     }
 }
 
 data class UiState(
-    val currentUser : User = User(
-        id = -1,
-        name = "",
-        email = "",
-        password = "",
-        vehicles = emptyList(),
-        wallet = Wallet(userId = -1, balance = 0.0),
-
-    ),
-    val currentStation : Station = Station(
-        id = -1,
-        name = "",
-        latitude = 0.0,
-        longitude = 0.0,
-        address = "",
-        chargers = emptyList()
-    )
+    val allUsers : List<User> = emptyList(),
+    val allStations : List<Station> = emptyList(),
+    val allReservations : List<Reservation> = emptyList(),
+    val usersReservations: List<Reservation> = emptyList(),
+    val currentUser: User? = null,
+    val currentVehicle : Vehicle? = null,
+    val currentStation: Station? = null,
+    val currentCharger : Charger? = null,
+    val currentReservation: Reservation? = null
 )
 

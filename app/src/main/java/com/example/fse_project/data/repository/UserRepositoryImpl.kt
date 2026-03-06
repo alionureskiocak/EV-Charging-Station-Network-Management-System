@@ -39,12 +39,13 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteUser(userId: Int) {
+    override suspend fun deleteUser(userId: Long) {
         dao.deleteUser(userId)
     }
 
-    override suspend fun getUserProfile(userId: Long): User {
-        return dao.getUserById(userId).toDomain()
+    override suspend fun getUserProfile(userId: Long): User? {
+        val user = dao.getUserById(userId)
+        return user?.toDomain()
     }
 
     override suspend fun getAllUsers(): Flow<List<User>>{
@@ -59,11 +60,11 @@ class UserRepositoryImpl @Inject constructor(
         return dao.insertVehicle(vehicle.toEntity())
     }
 
-    override suspend fun deleteVehicle(vehicleId : Int) {
+    override suspend fun deleteVehicle(vehicleId : Long) {
         dao.deleteVehicle(vehicleId)
     }
 
-    override suspend fun getVehicleById(vehicleId: Int): Vehicle {
+    override suspend fun getVehicleById(vehicleId: Long): Vehicle {
         return dao.getVehicleById(vehicleId).toDomain()
     }
 
@@ -73,7 +74,7 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getVehiclesByUserId(userId: Int): Flow<List<Vehicle>> {
+    override fun getVehiclesByUserId(userId: Long): Flow<List<Vehicle>> {
         return dao.getVehiclesByUserId(userId).map {
             it.map {
                 it.toDomain()
@@ -81,7 +82,7 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateWallet(userId: Int, balance: Double) {
+    override suspend fun updateWallet(userId: Long, balance: Double) {
         dao.updateWallet(userId,balance)
     }
 }
