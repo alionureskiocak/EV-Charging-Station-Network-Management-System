@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fse_project.data.datastore.SessionManager
+import com.example.fse_project.data.local.database.entities.ConnectorType
 import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Reservation
@@ -87,6 +88,16 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    fun getUsersCars(id : Long){
+        viewModelScope.launch {
+            userRepo.getVehiclesByUserId(id).collect {
+                _state.value = _state.value.copy(
+                    usersVehicles = it
+                )
+            }
+        }
+    }
+
 
     fun getUserProfile() {
         viewModelScope.launch {
@@ -99,6 +110,7 @@ class MainViewModel @Inject constructor(
                             currentUser = user
                         )
                         getUsersReservations(user.id)
+                        getUsersCars(user.id)
                     } else {
                         println("Kullanıcı veritabanında bulunamadı!")
                     }
@@ -184,6 +196,23 @@ class MainViewModel @Inject constructor(
 
         return slots
     }
+
+    fun addVehicle(
+       vehicle : Vehicle
+    ){
+        viewModelScope.launch {
+            val id = userRepo.createVehicle(vehicle)
+            setCurrentVehicle(vehicle.copy(id = id))
+        }
+    }
+
+    fun setCurrentVehicle(vehicle: Vehicle){
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                currentVehicle = vehicle
+            )
+        }
+    }
 }
 
 data class UiState(
@@ -191,6 +220,7 @@ data class UiState(
     val allStations : List<Station> = emptyList(),
     val allReservations : List<Reservation> = emptyList(),
     val usersReservations: List<Reservation> = emptyList(),
+    val usersVehicles : List<Vehicle> = emptyList(),
     val currentUser: User? = null,
     val currentVehicle : Vehicle? = null,
     val currentStation: Station? = null,
