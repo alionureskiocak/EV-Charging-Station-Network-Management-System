@@ -9,6 +9,7 @@ import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
+import com.example.fse_project.domain.model.StationStatus
 import com.example.fse_project.domain.model.User
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.domain.repository.ReservationRepository
@@ -128,17 +129,19 @@ class MainViewModel @Inject constructor(
 
     fun getChargersForStation(stationId : Long) : List<ChargerItem>{
 
-        //vehicle ve station alındıysa çağır
         val currentStation = _state.value.allStations.find { it.id == stationId }
         val currentVehicle = _state.value.currentVehicle
 
         currentStation?.let {
             currentVehicle?.let {
-
-                return currentStation.chargers.map { charger ->
-                    val clickable = charger.connectorType == currentVehicle.connectorType
+                val items = currentStation.chargers.map { charger ->
+                    val clickable =
+                        charger.connectorType == currentVehicle.connectorType &&
+                                currentStation.status == StationStatus.AVAILABLE
                     ChargerItem(charger = charger,clickable = clickable)
-            }
+                }
+                _state.value = _state.value.copy(chargerItems = items)
+                return items
         }
         }
 
@@ -193,6 +196,7 @@ class MainViewModel @Inject constructor(
                 )
             )
         }
+        _state.value = _state.value.copy(timeSlots = slots)
 
         return slots
     }
@@ -220,7 +224,9 @@ data class UiState(
     val allStations : List<Station> = emptyList(),
     val allReservations : List<Reservation> = emptyList(),
     val usersReservations: List<Reservation> = emptyList(),
+    val timeSlots : List<TimeSlot> = emptyList(),
     val usersVehicles : List<Vehicle> = emptyList(),
+    val chargerItems : List<ChargerItem> = emptyList(),
     val currentUser: User? = null,
     val currentVehicle : Vehicle? = null,
     val currentStation: Station? = null,

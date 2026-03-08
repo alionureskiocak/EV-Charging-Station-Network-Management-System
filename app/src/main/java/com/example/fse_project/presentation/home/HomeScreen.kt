@@ -27,16 +27,33 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import android.Manifest
 import androidx.compose.ui.graphics.Color
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,16 +61,24 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.bumptech.glide.load.resource.bitmap.BitmapResource
 import com.example.fse_project.data.local.database.entities.ConnectorType
 import com.example.fse_project.domain.model.Vehicle
+import com.example.ibanla.R
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
      viewModel: MainViewModel = hiltViewModel()
@@ -66,9 +91,14 @@ fun MainScreen(
     val vehicle = state.currentVehicle
     val usersVehicles = state.usersVehicles
     val stations = state.allStations
+    val chargerItems = state.chargerItems
+    val timeSlots = state.timeSlots
 
+    //var showChargers by remember { mutableStateOf(false) }
     var showCarDialog by remember { mutableStateOf(false) }
     var showCarAddDialog by remember { mutableStateOf(false) }
+    var isSheetOpen by remember { mutableStateOf(false) }
+
     val izmir = LatLng(38.4237, 27.1428)
 
     val cameraPositionState = rememberCameraPositionState {
@@ -84,6 +114,10 @@ fun MainScreen(
     LaunchedEffect(vehicle) {
         println(vehicle)
     }
+
+    //if (showChargers){
+//
+    //}
 
     if (showCarDialog){
         CarDialog(
@@ -160,7 +194,9 @@ fun MainScreen(
 
     Column(modifier = Modifier.fillMaxSize()){
         GoogleMap(
-            modifier = Modifier.fillMaxSize().weight(0.55f),
+            modifier = Modifier
+                .fillMaxSize()
+                .weight(0.55f),
             cameraPositionState = cameraPositionState,
             properties = properties,
             onMapClick = { latLng ->
@@ -193,18 +229,96 @@ fun MainScreen(
 
                     icon = BitmapDescriptorFactory.defaultMarker(color),
                     onClick = {
-                        //bottomsheet
-
+                        viewModel.getChargersForStation(station.id)
+                        //showChargers = true
+                        isSheetOpen = true
                         true
                     })
             }
         }
-        Box(modifier = Modifier.fillMaxSize().weight(0.45f),
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .weight(0.45f),
             ){
-            Text("deneme")
+
+            var showChargersForAnimation by remember { mutableStateOf(true) }
+            val sheetState = rememberModalBottomSheetState()
+
+            if (isSheetOpen){
+                ModalBottomSheet(
+                    sheetState = sheetState,
+                    onDismissRequest = {
+                        isSheetOpen = false
+                        showChargersForAnimation = true
+                    }){
+                    Box(modifier  =Modifier.fillMaxHeight(0.45f)){
+                        AnimatedContent(
+                            targetState = showChargersForAnimation,
+                            transitionSpec = {
+                                slideInHorizontally(
+                                    animationSpec = tween(
+                                        durationMillis = 500,
+                                        easing = FastOutSlowInEasing
+                                    ),
+                                    initialOffsetX = {if (targetState) -600 else 600}
+                                ) + fadeIn() togetherWith slideOutHorizontally(
+                                    animationSpec = tween(
+                                        durationMillis = 500,
+                                        easing = FastOutSlowInEasing
+                                    ),
+                                    targetOffsetX = {if (targetState) 600 else -600}
+                                ) + fadeOut()
+
+                            }
+                        ) {
+                            if (it) {
+                                ChargerChoiceScreen(
+                                    chargers = chargerItems,
+                                    onChargerClick = { chargerId ->
+                                        viewModel.getReservationTimeSlots(
+                                            chargerId = chargerId
+                                        )
+                                        showChargersForAnimation = false
+                                    }
+                                )
+                            } else {
+                                ChargerTimeSlotsScreen()
+                            }
+                        }
+                    }
+
+                }
+            }
+
         }
     }
 }
+
+@Composable
+fun ChargerChoiceScreen(chargers : List<ChargerItem>,onChargerClick : (Long) -> Unit) {
+    LazyVerticalGrid(columns = GridCells.Fixed(2)) {
+        items(chargers) { charger ->
+            Column {
+                Card(
+                    onClick = {
+                        onChargerClick(charger.charger.id)
+                    },
+                    enabled = charger.clickable
+                ) {
+                    Image(painter = painterResource(R.drawable.charger), contentDescription = null)
+                    Text(text = "${charger.charger.connectorType}")
+                }
+
+            }
+        }
+    }
+}
+
+@Composable
+fun ChargerTimeSlotsScreen() {
+    Text("Deneme")
+}
+
 @Composable
 fun CarDialog(
     usersVehicles: List<Vehicle>,

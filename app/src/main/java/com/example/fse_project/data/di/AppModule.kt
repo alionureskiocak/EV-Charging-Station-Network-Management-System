@@ -59,7 +59,7 @@ object AppModule {
                     CoroutineScope(Dispatchers.IO).launch {
                         val dao = dbProvider.get().appDao()
 
-                        val defaultUser1 = UserEntity(id = 0, name = "Ali Onur Eskiocak", email = "ali", password = "ali")
+                        val defaultUser1 = UserEntity(id = 0, name = "Ali Onur Eskiocak", email = "a", password = "a")
                         val newUserId1 = dao.insertUser(defaultUser1)
                         val defaultWallet = WalletEntity(userId = newUserId1, balance = 1500.0)
                         dao.insertWallet(defaultWallet)
@@ -173,12 +173,12 @@ object AppModule {
                             dao.insertCharger(ChargerEntity(
                                 id = 0, stationOwnerId = stationId, chargerName = "AC-2 (22kW)",
                                 chargerType = ChargerType.AC, powerOutput = PowerOutput.KW_22,
-                                connectorType = ConnectorType.TYPE_2, chargerStatus = statuses.random()
+                                connectorType = ConnectorType.CHADEMO, chargerStatus = statuses.random()
                             ))
                             dao.insertCharger(ChargerEntity(
                                 id = 0, stationOwnerId = stationId, chargerName = "DC-1 Hızlı (50kW)",
                                 chargerType = ChargerType.DC, powerOutput = PowerOutput.KW_50,
-                                connectorType = ConnectorType.CCS, chargerStatus = statuses.random()
+                                connectorType = ConnectorType.CHADEMO, chargerStatus = statuses.random()
                             ))
                             dao.insertCharger(ChargerEntity(
                                 id = 0, stationOwnerId = stationId, chargerName = "DC-2 Ultra (150kW)",
