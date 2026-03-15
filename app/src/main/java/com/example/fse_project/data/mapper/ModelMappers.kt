@@ -22,7 +22,7 @@ fun UserEntity.toDomain(): User = User(
     email = email,
     password = password,
     vehicles = emptyList(),
-    wallet = Wallet(-1,0.0)
+    wallet = Wallet(id,0.0)
 )
 
 fun User.toEntity(): UserEntity = UserEntity(

@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ibanla"
+    namespace = "com.example.fse_project"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.ibanla"
+        applicationId = "com.example.fse_project"
         minSdk = 28
         targetSdk = 36
         versionCode = 1

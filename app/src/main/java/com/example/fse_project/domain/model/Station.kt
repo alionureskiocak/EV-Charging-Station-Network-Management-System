@@ -10,16 +10,13 @@ data class Station(
     val address : String,
     val chargers : List<Charger> = emptyList(),
 ){
-    val status : StationStatus
-        get(){
-            return when{
+    val status: StationStatus
+        get() {
+            return when {
                 chargers.isEmpty() -> StationStatus.OFFLINE
                 chargers.any { it.chargerStatus == ChargerStatus.AVAILABLE } -> StationStatus.AVAILABLE
-                chargers.all { it.chargerStatus == ChargerStatus.OFFLINE } -> StationStatus.OFFLINE
-                chargers.all { it.chargerStatus == ChargerStatus.OCCUPIED } -> StationStatus.OCCUPIED
-                else -> {
-                    StationStatus.OFFLINE
-                }
+                chargers.any { it.chargerStatus == ChargerStatus.OCCUPIED } -> StationStatus.OCCUPIED
+                else -> StationStatus.OFFLINE // Sadece hepsi offline ise buraya düşer
             }
         }
 }

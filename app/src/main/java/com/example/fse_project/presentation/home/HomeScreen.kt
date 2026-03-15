@@ -37,25 +37,35 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -64,19 +74,31 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import co.yml.charts.common.extensions.isNotNull
 import coil.compose.AsyncImage
 import com.bumptech.glide.load.resource.bitmap.BitmapResource
+import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ConnectorType
+import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.Vehicle
-import com.example.ibanla.R
+import com.example.fse_project.R
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.util.Queue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,9 +114,9 @@ fun MainScreen(
     val usersVehicles = state.usersVehicles
     val stations = state.allStations
     val chargerItems = state.chargerItems
-    val timeSlots = state.timeSlots
+    val timeSlots = if (state.restrictedTimeSlots == emptyList<TimeSlot>()) state.timeSlots else state.restrictedTimeSlots
 
-    //var showChargers by remember { mutableStateOf(false) }
+    var currentStation = state.currentStation
     var showCarDialog by remember { mutableStateOf(false) }
     var showCarAddDialog by remember { mutableStateOf(false) }
     var isSheetOpen by remember { mutableStateOf(false) }
@@ -192,121 +214,127 @@ fun MainScreen(
     //    }
     //}
 
-    Column(modifier = Modifier.fillMaxSize()){
-        GoogleMap(
-            modifier = Modifier
-                .fillMaxSize()
-                .weight(0.55f),
-            cameraPositionState = cameraPositionState,
-            properties = properties,
-            onMapClick = { latLng ->
-                currentUser?.let {
-                    println(currentUser.name)
-                }
-
-            }
-        ) {
-            // if (pathPoints.isNotEmpty()) {
-            //     Polyline(
-            //         points = pathPoints,
-            //         color = Color(0xFF2196F3), // Klasik Google Maps mavisi
-            //         width = 12f,
-            //         geodesic = true // Dünyanın eğriliğine göre hesapla
-            //     )
-            // }
-
-            stations.forEach { station ->
-
-                val color = when (station.status) {
-                    StationStatus.AVAILABLE -> BitmapDescriptorFactory.HUE_GREEN
-                    StationStatus.OCCUPIED -> BitmapDescriptorFactory.HUE_ORANGE
-                    else -> BitmapDescriptorFactory.HUE_RED
-                }
-
-                Marker(
-                    state = MarkerState(LatLng(station.latitude,station.longitude)),
-                    title = station.name,
-
-                    icon = BitmapDescriptorFactory.defaultMarker(color),
-                    onClick = {
-                        viewModel.getChargersForStation(station.id)
-                        //showChargers = true
-                        isSheetOpen = true
-                        true
-                    })
-            }
-        }
-        Box(modifier = Modifier
+    Scaffold(
+        bottomBar = {}
+    ) { paddingValues ->
+        Column(modifier = Modifier
             .fillMaxSize()
-            .weight(0.45f),
-            ){
-
-            var showChargersForAnimation by remember { mutableStateOf(true) }
-            val sheetState = rememberModalBottomSheetState()
-
-            if (isSheetOpen){
-                ModalBottomSheet(
-                    sheetState = sheetState,
-                    onDismissRequest = {
-                        isSheetOpen = false
-                        showChargersForAnimation = true
-                    }){
-                    Box(modifier  =Modifier.fillMaxHeight(0.45f)){
-                        AnimatedContent(
-                            targetState = showChargersForAnimation,
-                            transitionSpec = {
-                                slideInHorizontally(
-                                    animationSpec = tween(
-                                        durationMillis = 500,
-                                        easing = FastOutSlowInEasing
-                                    ),
-                                    initialOffsetX = {if (targetState) -600 else 600}
-                                ) + fadeIn() togetherWith slideOutHorizontally(
-                                    animationSpec = tween(
-                                        durationMillis = 500,
-                                        easing = FastOutSlowInEasing
-                                    ),
-                                    targetOffsetX = {if (targetState) 600 else -600}
-                                ) + fadeOut()
-
-                            }
-                        ) {
-                            if (it) {
-                                ChargerChoiceScreen(
-                                    chargers = chargerItems,
-                                    onChargerClick = { chargerId ->
-                                        viewModel.getReservationTimeSlots(
-                                            chargerId = chargerId
-                                        )
-                                        showChargersForAnimation = false
-                                    }
-                                )
-                            } else {
-                                ChargerTimeSlotsScreen()
-                            }
-                        }
+            .padding(paddingValues)){
+            GoogleMap(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                cameraPositionState = cameraPositionState,
+                properties = properties,
+                onMapClick = { latLng ->
+                    currentUser?.let {
+                        println(currentUser.name)
                     }
 
                 }
+            ) {
+                // if (pathPoints.isNotEmpty()) {
+                //     Polyline(
+                //         points = pathPoints,
+                //         color = Color(0xFF2196F3), // Klasik Google Maps mavisi
+                //         width = 12f,
+                //         geodesic = true // Dünyanın eğriliğine göre hesapla
+                //     )
+                // }
+
+                stations.forEach { station ->
+
+                    val color = if (vehicle != null) {
+
+                        val compatibleChargers = station.chargers.filter { it.connectorType == vehicle.connectorType }
+                        when {
+                            compatibleChargers.isEmpty() || compatibleChargers.all { it.chargerStatus == ChargerStatus.OFFLINE } -> BitmapDescriptorFactory.HUE_RED
+                            compatibleChargers.any { it.chargerStatus == ChargerStatus.AVAILABLE } -> BitmapDescriptorFactory.HUE_GREEN
+                            else -> BitmapDescriptorFactory.HUE_ORANGE
+                        }
+                    } else {
+                        when (station.status) {
+                            StationStatus.AVAILABLE -> BitmapDescriptorFactory.HUE_GREEN
+                            StationStatus.OCCUPIED -> BitmapDescriptorFactory.HUE_ORANGE
+                            else -> BitmapDescriptorFactory.HUE_RED
+                        }
+                    }
+                    Marker(
+                        state = MarkerState(LatLng(station.latitude, station.longitude)),
+                        title = station.name,
+                        icon = BitmapDescriptorFactory.defaultMarker(color),
+                        onClick = {
+                            viewModel.setCurrentStation(station.id)
+                            viewModel.getChargersForStation(station.id)
+                            isSheetOpen = true
+                            true
+                        }
+                    )
+                }
             }
+            Box(
+            ){
 
-        }
-    }
-}
+                var showChargersForAnimation by remember { mutableStateOf(true) }
+                val sheetState = rememberModalBottomSheetState()
 
-@Composable
-fun ChargerChoiceScreen(chargers : List<ChargerItem>,onChargerClick : (Long) -> Unit) {
-    LazyVerticalGrid(columns = GridCells.Fixed(2)) {
-        items(chargers) { charger ->
-            Column {
-                Card(
-                    onClick = {
-                        onChargerClick(charger.charger.id)
-                    },
-                    enabled = charger.clickable
-                ) {
-                    Image(painter = painterResource(R.drawable.charger), contentDescription = null)
-                    Text(text = "${charger.charger.connectorType}")
+                if (isSheetOpen){
+                    ModalBottomSheet(
+                        sheetState = sheetState,
+                        onDismissRequest = {
+                            isSheetOpen = false
+                            showChargersForAnimation = true
+                            viewModel.clearSelectedTimes()
+                        }){
+                        Box(modifier  =Modifier.fillMaxHeight(0.45f)){
+                            AnimatedContent(
+                                targetState = showChargersForAnimation,
+                                transitionSpec = {
+                                    slideInHorizontally(
+                                        animationSpec = tween(
+                                            durationMillis = 500,
+                                            easing = FastOutSlowInEasing
+                                        ),
+                                        initialOffsetX = {if (targetState) -600 else 600}
+                                    ) + fadeIn() togetherWith slideOutHorizontally(
+                                        animationSpec = tween(
+                                            durationMillis = 500,
+                                            easing = FastOutSlowInEasing
+                                        ),
+                                        targetOffsetX = {if (targetState) 600 else -600}
+                                    ) + fadeOut()
+
+                                }
+                            ) {
+                                if (it) {
+                                    ChargerChoiceScreen(
+                                        chargers = chargerItems,
+                                        onChargerClick = { chargerId ->
+                                            viewModel.getReservationTimeSlots(
+                                                chargerId = chargerId
+                                            )
+                                            viewModel.setCurrentCharger(chargerId)
+                                            showChargersForAnimation = false
+                                        },
+                                        station = currentStation!!
+                                    )
+                                } else {
+                                    ChargerTimeSlotsScreen(
+                                        timeSlots = timeSlots,
+                                        selectedStartIndex = state.selectedStartIndex,
+                                        selectedEndIndex = state.selectedEndIndex,
+                                        onTimeSlotSelected = {viewModel.selectTimeSlot(it)},
+                                        onReservationConfirm = { str, end ->
+                                            viewModel.createReservation(str,end)
+                                            println("hoist")
+                                        }
+
+                                    )
+                                }
+                            }
+                        }
+
+                    }
                 }
 
             }
@@ -314,9 +342,195 @@ fun ChargerChoiceScreen(chargers : List<ChargerItem>,onChargerClick : (Long) -> 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChargerTimeSlotsScreen() {
-    Text("Deneme")
+fun ChargerChoiceScreen(
+    chargers: List<ChargerItem>,
+    station: Station,
+    onChargerClick: (Long) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = station.name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = station.address,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 16.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(chargers) { item ->
+                val alpha = if (item.clickable) 1f else 0.4f
+                ElevatedCard(
+                    onClick = { onChargerClick(item.charger.id) },
+                    enabled = item.clickable,
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(alpha)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                                    .background(item.statusColor)
+                            )
+                        }
+
+                        Image(
+                            painter = painterResource(R.drawable.charger),
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = item.charger.chargerName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = item.charger.connectorType.name,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Text(
+                            text = item.charger.powerOutput.name.replace("KW_", "") + " kW",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = item.clickableText!!,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = item.statusColor,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ChargerTimeSlotsScreen(
+    timeSlots: List<TimeSlot>,
+    selectedStartIndex: Int?,
+    selectedEndIndex: Int?,
+    onTimeSlotSelected: (Int) -> Unit,
+    onReservationConfirm: (Int, Int) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(4),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            items(timeSlots) { timeSlot ->
+                val isSelected = selectedStartIndex != null && (
+                        timeSlot.index == selectedStartIndex ||
+                                (selectedEndIndex != null && timeSlot.index in selectedStartIndex..selectedEndIndex)
+                        )
+
+                val containerColor = when {
+                    isSelected -> MaterialTheme.colorScheme.primary
+                    timeSlot.isAvailable -> MaterialTheme.colorScheme.surface
+                    else -> Color.LightGray
+                }
+
+                val contentColor = when {
+                    isSelected -> MaterialTheme.colorScheme.onPrimary
+                    timeSlot.isAvailable -> MaterialTheme.colorScheme.primary
+                    else -> Color.Gray
+                }
+
+                OutlinedButton(
+                    onClick = { onTimeSlotSelected(timeSlot.index) },
+                    enabled = timeSlot.isAvailable,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                        disabledContainerColor = Color(0xFFF5F5F5),
+                        disabledContentColor = Color.LightGray
+                    )
+                ) {
+                    Text(
+                        text = timeSlot.timeLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            }
+        }
+
+
+        Button(
+            onClick = {
+                if (selectedStartIndex != null) {
+                    val finalEndIndex = selectedEndIndex ?: selectedStartIndex
+                    onReservationConfirm(selectedStartIndex, finalEndIndex)
+                }
+            },
+            enabled = selectedStartIndex != null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Rezervasyonu Onayla")
+        }
+    }
 }
 
 @Composable

@@ -2,6 +2,7 @@ package com.example.fse_project.data.local.database
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.example.fse_project.data.local.database.entities.ChargerEntity
@@ -128,7 +129,7 @@ interface AppDao {
 
     ///////////// RESERVATION ////////////////////////////
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReservation(reservationEntity: ReservationEntity): Long
 
     @Query("DELETE FROM reservations WHERE id = :reservationId")
