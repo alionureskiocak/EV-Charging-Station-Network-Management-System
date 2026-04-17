@@ -16,7 +16,8 @@ data class Station(
                 chargers.isEmpty() -> StationStatus.OFFLINE
                 chargers.any { it.chargerStatus == ChargerStatus.AVAILABLE } -> StationStatus.AVAILABLE
                 chargers.any { it.chargerStatus == ChargerStatus.OCCUPIED } -> StationStatus.OCCUPIED
-                else -> StationStatus.OFFLINE // Sadece hepsi offline ise buraya düşer
+                chargers.any{ it.chargerStatus == ChargerStatus.FULL } -> StationStatus.FULL
+                else -> StationStatus.OFFLINE
             }
         }
 }
@@ -24,5 +25,6 @@ data class Station(
 enum class StationStatus{
     AVAILABLE,
     OCCUPIED,
+    FULL,
     OFFLINE
 }

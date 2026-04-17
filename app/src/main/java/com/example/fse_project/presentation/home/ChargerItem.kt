@@ -7,6 +7,7 @@ data class ChargerItem(
     val charger : Charger,
     val clickable : Boolean,
     val clickableText : String?,
-){
     var statusColor : Color = Color.Gray
+){
+
 }

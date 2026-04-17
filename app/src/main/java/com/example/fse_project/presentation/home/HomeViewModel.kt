@@ -7,25 +7,29 @@ import androidx.lifecycle.viewModelScope
 import com.example.fse_project.data.datastore.SessionManager
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ReservationStatus
+import com.example.fse_project.data.remote.model.Step
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.StationStatus
 import com.example.fse_project.domain.model.User
 import com.example.fse_project.domain.model.Vehicle
+import com.example.fse_project.domain.repository.DirectionsRepository
 import com.example.fse_project.domain.repository.ReservationRepository
 import com.example.fse_project.domain.repository.StationRepository
 import com.example.fse_project.domain.repository.UserRepository
+import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.LocalTime
 import javax.inject.Inject
-import kotlin.math.abs
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
@@ -33,15 +37,9 @@ class MainViewModel @Inject constructor(
     private val stationRepo: StationRepository,
     private val reservationRepo: ReservationRepository,
     private val sessionManager: SessionManager,
+    private val directionsRepo : DirectionsRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-
-    init {
-        getUserProfile()
-        getUsers()
-        getAllReservations()
-        getAllStations()
-    }
 
     private val _state = MutableStateFlow(
         UiState(
@@ -50,13 +48,82 @@ class MainViewModel @Inject constructor(
     )
     val state = _state.asStateFlow()
 
+    init {
+        getUserProfile()
+        getUsers()
+        observeStationsWithReservations()
+        // BUG FIX 1: allReservations hiç yüklenmiyordu, init'e eklendi
+        observeAllReservations()
+    }
+
+    // BUG FIX 1: allReservations'ı sürekli dinle (getReservationTimeSlots buna bakıyor)
+    private fun observeAllReservations() {
+        viewModelScope.launch {
+            reservationRepo.getAllReservations().collect { reservations ->
+                _state.update { it.copy(allReservations = reservations) }
+            }
+        }
+    }
+
+    private fun observeStationsWithReservations() {
+        viewModelScope.launch {
+            combine(
+                stationRepo.getStations(),
+                reservationRepo.getAllReservations()
+            ) { stations, reservations ->
+
+                stations.map { station ->
+                    val updatedChargers = station.chargers.map { charger ->
+
+                        val chargerReservations = reservations.filter {
+                            it.charger.id == charger.id &&
+                                    it.status in listOf(
+                                ReservationStatus.ACTIVE,
+                                ReservationStatus.AVAILABLE
+                            )
+                        }
+
+                        val now = LocalDateTime.now()
+
+                        val isOccupiedNow = chargerReservations.any {
+                            now.isAfter(it.startTime) && now.isBefore(it.endTime)
+                        }
+
+                        val hasFuture = chargerReservations.any {
+                            it.startTime.isAfter(now)
+                        }
+
+                        val newStatus = when {
+                            isOccupiedNow && hasFuture -> ChargerStatus.OCCUPIED
+                            isOccupiedNow && !hasFuture -> ChargerStatus.FULL
+                            else -> ChargerStatus.AVAILABLE
+                        }
+
+                        charger.copy(chargerStatus = newStatus)
+                    }
+
+                    station.copy(chargers = updatedChargers)
+                }
+            }.collect { updatedStations ->
+                _state.update { currentState ->
+                    // BUG FIX 2: currentStation da güncel station listesinden yenileniyor
+                    // Böylece setCurrentStation'dan gelen stale data sorunu çözülüyor
+                    val refreshedCurrentStation = currentState.currentStation?.let { cs ->
+                        updatedStations.find { it.id == cs.id }
+                    }
+                    currentState.copy(
+                        allStations = updatedStations,
+                        currentStation = refreshedCurrentStation ?: currentState.currentStation
+                    )
+                }
+            }
+        }
+    }
 
     fun getUsers() {
         viewModelScope.launch {
             userRepo.getUsers().collect {
-                _state.value = _state.value.copy(
-                    allUsers = it
-                )
+                _state.update { state -> state.copy(allUsers = it) }
             }
         }
     }
@@ -64,9 +131,7 @@ class MainViewModel @Inject constructor(
     fun getAllReservations() {
         viewModelScope.launch {
             reservationRepo.getAllReservations().collect {
-                _state.value = _state.value.copy(
-                    allReservations = it
-                )
+                _state.update { state -> state.copy(allReservations = it) }
             }
         }
     }
@@ -74,9 +139,7 @@ class MainViewModel @Inject constructor(
     fun getAllStations() {
         viewModelScope.launch {
             stationRepo.getStations().collect {
-                _state.value = _state.value.copy(
-                    allStations = it
-                )
+                _state.update { state -> state.copy(allStations = it) }
             }
         }
     }
@@ -84,9 +147,7 @@ class MainViewModel @Inject constructor(
     fun getUsersReservations(id: Long) {
         viewModelScope.launch {
             reservationRepo.getAllReservationsByUserId(id).collect {
-                _state.value = _state.value.copy(
-                    usersReservations = it
-                )
+                _state.update { state -> state.copy(usersReservations = it) }
             }
         }
     }
@@ -94,9 +155,7 @@ class MainViewModel @Inject constructor(
     fun getUsersCars(id: Long) {
         viewModelScope.launch {
             userRepo.getVehiclesByUserId(id).collect {
-                _state.value = _state.value.copy(
-                    usersVehicles = it
-                )
+                _state.update { state -> state.copy(usersVehicles = it) }
             }
         }
     }
@@ -106,68 +165,14 @@ class MainViewModel @Inject constructor(
             sessionManager.currentUserId.filterNotNull().collectLatest { userId ->
                 val user = userRepo.getUserProfile(userId)
                 if (user != null) {
-                    _state.value = _state.value.copy(
-                        currentUser = user
-                    )
-                    getUsersReservations(user.id)
+                    _state.update { it.copy(currentUser = user) }
                     getUsersCars(user.id)
+                    getUsersReservations(user.id)
                 } else {
                     println("Kullanıcı veritabanında bulunamadı!")
                 }
             }
         }
-    }
-
-    fun getChargerById(chargerId: Long) {
-        viewModelScope.launch {
-            _state.value = _state.value.copy(
-                currentCharger = stationRepo.getChargerById(chargerId)
-            )
-        }
-    }
-
-    fun getChargersForStation(stationId: Long): List<ChargerItem> {
-
-        val currentStation = _state.value.allStations.find { it.id == stationId }
-        val currentVehicle = _state.value.currentVehicle
-
-        currentStation?.let {
-            currentVehicle?.let {
-                println("current station: ${currentStation.id}")
-                // ViewModel veya UI State Mapper Güncellemesi
-                val items = currentStation.chargers.map { charger ->
-                    val clickable = charger.connectorType == currentVehicle.connectorType &&
-                            currentStation.status != StationStatus.OFFLINE &&
-                            charger.chargerStatus != ChargerStatus.OFFLINE
-
-                    val clickableText = when {
-                        currentStation.status == StationStatus.OFFLINE || charger.chargerStatus == ChargerStatus.OFFLINE -> "Çevrimdışı"
-                        charger.connectorType != currentVehicle.connectorType -> "Uyumsuz soket"
-                        charger.chargerStatus == ChargerStatus.OCCUPIED -> "Dolu (Randevu Alınabilir)" // <-- Kullanıcıyı yönlendiren metin
-                        else -> "Uygun"
-                    }
-
-                    val statusColor: Color = when {
-                        clickable && charger.chargerStatus == ChargerStatus.OCCUPIED -> Color(0xFFFF9100) // Turuncu
-                        !clickable -> Color(0xFFF44336) // Kırmızı
-                        clickable && charger.chargerStatus == ChargerStatus.AVAILABLE -> Color(0xFF76FF03) // Yeşil
-                        else -> Color.Gray
-                    }
-
-                   val chargerItem =  ChargerItem(
-                        charger = charger,
-                        clickable = clickable,
-                        clickableText = clickableText,
-                    )
-                    chargerItem.statusColor = statusColor
-                    chargerItem
-                }
-                _state.value = _state.value.copy(chargerItems = items)
-                return items
-            }
-        }
-
-        return emptyList()
     }
 
     fun addVehicle(vehicle: Vehicle) {
@@ -178,209 +183,244 @@ class MainViewModel @Inject constructor(
     }
 
     fun setCurrentVehicle(vehicle: Vehicle) {
+        _state.update { it.copy(currentVehicle = vehicle) }
+    }
+
+    // BUG FIX 2: Repo'dan çekmek yerine allStations'tan al —
+    // Hesaplanmış charger status'ları korunuyor
+    fun setCurrentStation(stationId: Long) {
+        val station = _state.value.allStations.find { it.id == stationId }
+        if (station != null) {
+            _state.update { it.copy(currentStation = station) }
+        } else {
+            // Fallback: listede yoksa repo'dan çek
+            viewModelScope.launch {
+                val fromRepo = stationRepo.getStationById(stationId)
+                _state.update { it.copy(currentStation = fromRepo) }
+            }
+        }
+    }
+
+    fun setCurrentCharger(chargerId: Long) {
+        // BUG FIX 3: Önce currentStation'daki charger'lara bak, repo çağrısını azalt
+        val chargerFromState = _state.value.currentStation?.chargers?.find { it.id == chargerId }
+        if (chargerFromState != null) {
+            _state.update { it.copy(currentCharger = chargerFromState) }
+        } else {
+            viewModelScope.launch {
+                val charger = stationRepo.getChargerById(chargerId)
+                _state.update { it.copy(currentCharger = charger) }
+            }
+        }
+    }
+
+    fun updateChargerStatus(id: Long, newStatus: ChargerStatus) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(
-                currentVehicle = vehicle
-            )
+            stationRepo.updateChargerStatus(id, newStatus)
         }
     }
 
     fun clearSelectedTimes() {
-        viewModelScope.launch {
-            _state.value = _state.value.copy(
-                selectedStartIndex = null,
-                selectedEndIndex = null
-            )
-        }
-    }
-
-    fun createReservation(startTime: Int, endTime: Int) {
-        val startTime =
-            LocalDateTime.of(LocalDateTime.now().toLocalDate(), LocalTime.of(startTime, 0))
-        val endTime = LocalDateTime.of(LocalDateTime.now().toLocalDate(), LocalTime.of(endTime, 0))
-        viewModelScope.launch {
-            val user = _state.value.currentUser
-            val vehicle = _state.value.currentVehicle
-            val station = _state.value.currentStation
-            val charger = _state.value.currentCharger
-            println("$user\n$vehicle\n$station\n$charger\n")
-            val pricePerKwh = 4.0
-            if (user != null && vehicle != null && station != null && charger != null) {
-                val reservation = Reservation(
-                    id = 0,
-                    user = user,
-                    vehicle = vehicle,
-                    station = station,
-                    charger = charger,
-                    startTime = startTime,
-                    endTime = endTime,
-                    pricePerKwh = pricePerKwh,
-                    status = ReservationStatus.ACTIVE
-                )
-                reservationRepo.createReservation(reservation)
-            }
-        }
-        println(_state.value.allReservations)
-    }
-
-    fun setCurrentStation(stationId : Long){
-        viewModelScope.launch {
-            val station = stationRepo.getStationById(stationId)
-            _state.value = _state.value.copy(
-                currentStation = station
-            )
-        }
-    }
-
-    fun setCurrentCharger(chargerId: Long){
-        viewModelScope.launch {
-            val charger = stationRepo.getChargerById(chargerId)
-
-            _state.value = _state.value.copy(
-                currentCharger = charger
-            )
-        }
+        _state.update { it.copy(selectedStartIndex = null, selectedEndIndex = null) }
     }
 
     fun selectTimeSlot(timeSlotIndex: Int) {
         val slots = _state.value.timeSlots
+        val clickedSlot = slots.find { it.index == timeSlotIndex } ?: return
+        if (!clickedSlot.isAvailable) return
+
         val currentStart = _state.value.selectedStartIndex
         val currentEnd = _state.value.selectedEndIndex
 
-        val clickedSlot = slots.find { it.index == timeSlotIndex } ?: return
-        if (!clickedSlot.isAvailable) return // Kutu doluysa hiç tepki verme
-
-        // 1. DURUM: Hiç seçim yoksa VEYA önceden uzun bir aralık seçilmişse (yeni bir seçime başlıyorsa)
-        // VEYA tıklanan yer mevcut başlangıçtan gerideyse (Örn: 15'i seçmişti, 13'e tıkladı)
+        // Yeni seçim başlatma
         if (currentStart == null || (currentStart != currentEnd) || timeSlotIndex < currentStart) {
-            // Tıkladığı kutuyu hem başlangıç hem bitiş yap (Sadece o 1 saati seç)
-            _state.value = _state.value.copy(
-                selectedStartIndex = timeSlotIndex,
-                selectedEndIndex = timeSlotIndex
-            )
+            _state.update { it.copy(selectedStartIndex = timeSlotIndex, selectedEndIndex = timeSlotIndex) }
             return
         }
 
-        // 2. DURUM: Zaten seçili olan tek kutuya tekrar tıkladı (Seçimi iptal et)
-        if (currentStart == timeSlotIndex && currentEnd == timeSlotIndex) {
-            _state.value = _state.value.copy(
-                selectedStartIndex = null,
-                selectedEndIndex = null
-            )
+        // Seçimi iptal etme
+        if (currentStart == timeSlotIndex) {
+            _state.update { it.copy(selectedStartIndex = null, selectedEndIndex = null) }
             return
         }
 
-        // 3. DURUM: İleriye doğru yeni bir kutu seçti (Aralığı uzatmak istiyor)
+        // Aralığı uzatma (max 4 saat, arada dolu slot yok)
         if (timeSlotIndex > currentStart) {
-            var isRangeValid = true
-
-            // Başlangıç ile tıklanan son kutu arasındaki tüm kutuları kontrol et
-            for (i in currentStart..timeSlotIndex) {
-                val slotInRange = slots.find { it.index == i }
-                if (slotInRange == null || !slotInRange.isAvailable) {
-                    isRangeValid = false
-                    break
-                }
-            }
-
-            // Seçilen kutu sayısı (Örn: 3. kutudan 5. kutuya = 3 kutu = 3 saat)
+            val range = slots.filter { it.index in currentStart..timeSlotIndex }
+            val isRangeClear = range.all { it.isAvailable }
             val duration = (timeSlotIndex - currentStart) + 1
 
-            if (isRangeValid && duration <= 4) {
-                // Her şey yasal! Aralığı seçilen yeni kutuya kadar uzat
-                _state.value = _state.value.copy(selectedEndIndex = timeSlotIndex)
+            if (isRangeClear && duration <= 4) {
+                _state.update { it.copy(selectedEndIndex = timeSlotIndex) }
             } else {
-                // Hatalı seçimse (arada dolu var veya 4 saati aştı), uzatmaya izin verme,
-                // sadece tıklanan yeri yeni 1 saatlik seçim olarak kabul et.
-                _state.value = _state.value.copy(
-                    selectedStartIndex = timeSlotIndex,
-                    selectedEndIndex = timeSlotIndex
-                )
+                _state.update { it.copy(selectedStartIndex = timeSlotIndex, selectedEndIndex = timeSlotIndex) }
             }
         }
     }
 
-    fun getReservationTimeSlots(
-        chargerId: Long, selectedDate: LocalDateTime = LocalDateTime.now()
-    ): List<TimeSlot> {
+    fun createReservation() {
+        val startIdx = _state.value.selectedStartIndex ?: return
+        val endIdx = _state.value.selectedEndIndex ?: return
 
-        val targetDates = listOf(
-            selectedDate.toLocalDate(), selectedDate.toLocalDate().plusDays(1)
-        )
+        val startSlot = _state.value.timeSlots.find { it.index == startIdx }
+        val endSlot = _state.value.timeSlots.find { it.index == endIdx }
 
-        val allReservations = _state.value.allReservations.filter {
-            it.charger.id == chargerId && it.status in listOf(
-                ReservationStatus.AVAILABLE,
-                ReservationStatus.ACTIVE
-            ) && it.startTime.toLocalDate() in targetDates
+        if (startSlot != null && endSlot != null) {
+            val startTime = LocalDateTime.of(startSlot.date, LocalTime.of(startSlot.hour, 0))
+            val endTime = LocalDateTime.of(endSlot.date, LocalTime.of(endSlot.hour, 0)).plusHours(1)
+
+            viewModelScope.launch {
+                val reservation = Reservation(
+                    id = 0,
+                    user = _state.value.currentUser!!,
+                    vehicle = _state.value.currentVehicle!!,
+                    station = _state.value.currentStation!!,
+                    charger = _state.value.currentCharger!!,
+                    startTime = startTime,
+                    endTime = endTime,
+                    pricePerKwh = 4.0,
+                    status = ReservationStatus.ACTIVE
+                )
+                reservationRepo.createReservation(reservation)
+                clearSelectedTimes()
+                // BUG FIX 1: observeAllReservations zaten dinliyor, manuel çağrıya gerek yok
+                // ama yine de kullanıcının rezervasyonlarını güncelle
+                _state.value.currentUser?.let { getUsersReservations(it.id) }
+                 val station = _state.value.currentStation!!
+
+                val userLocation = _state.value.userLocation
+                userLocation.let {
+                    fetchDirections(
+                        originLat = userLocation!!.latitude,
+                        originLng = userLocation.longitude,
+                        destLat = station.latitude,
+                        destLng = station.longitude
+                    )
+                }
+
+            }
+        }
+    }
+
+    fun getReservationTimeSlots(chargerId: Long) {
+        val referenceDate: LocalDateTime = LocalDateTime.now()
+        val today = referenceDate.toLocalDate()
+        val tomorrow = today.plusDays(1)
+
+        // BUG FIX 1: allReservations artık dolu (observeAllReservations sayesinde)
+        val activeReservationsForCharger = _state.value.allReservations.filter {
+            it.charger.id == chargerId &&
+                    it.status in listOf(ReservationStatus.AVAILABLE, ReservationStatus.ACTIVE)
         }
 
         val slots = mutableListOf<TimeSlot>()
-        val startHour = selectedDate.hour
-        var index = 0
+        var globalIndex = 1
 
-        // 1. KISIM: Bugün için kalan saatler (Seçilen saatten gece 23:59'a kadar)
-        for (hour in startHour..23) {
-            index++
-
-            // Slot'un tam başlangıç ve bitiş zamanını (1 saatlik blok olarak) oluşturuyoruz
-            val slotStart = LocalDateTime.of(selectedDate.toLocalDate(), LocalTime.of(hour, 0))
+        // Bugünün slotları
+        for (hour in referenceDate.hour..23) {
+            val slotStart = LocalDateTime.of(today, LocalTime.of(hour, 0))
             val slotEnd = slotStart.plusHours(1)
 
-            val isOccupied = allReservations.any { reservation ->
-                // Kusursuz Kesişim (Overlap) Kuralı
-                slotStart.isBefore(reservation.endTime) && reservation.startTime.isBefore(slotEnd)
+            val isReserved = activeReservationsForCharger.any { res ->
+                slotStart.isBefore(res.endTime) && res.startTime.isBefore(slotEnd)
             }
-
-            // Kutu üzerindeki yazıyı sezgisel hale getiriyoruz: "05:00 - 06:00"
-            val endHour = if (hour == 23) 0 else hour + 1
-            val label = String.format("%02d:00 - %02d:00", hour, endHour)
 
             slots.add(
                 TimeSlot(
-                    index = index,
+                    index = globalIndex++,
                     hour = hour,
-                    timeLabel = label,
+                    date = today,
+                    timeLabel = String.format("%02d:00 - %02d:00", hour, if (hour == 23) 0 else hour + 1),
+                    isAvailable = !isReserved
+                )
+            )
+        }
+
+        // Yarının slotları (toplam 24'e tamamla)
+        val remainingSlotCount = 24 - slots.size
+        for (hour in 0 until remainingSlotCount) {
+            val slotStart = LocalDateTime.of(tomorrow, LocalTime.of(hour, 0))
+            val slotEnd = slotStart.plusHours(1)
+
+            val isOccupied = activeReservationsForCharger.any { res ->
+                slotStart.isBefore(res.endTime) && res.startTime.isBefore(slotEnd)
+            }
+
+            slots.add(
+                TimeSlot(
+                    index = globalIndex++,
+                    hour = hour,
+                    date = tomorrow,
+                    timeLabel = String.format("%02d:00 - %02d:00", hour, hour + 1),
                     isAvailable = !isOccupied
                 )
             )
         }
 
-        // 2. KISIM: Ertesi günün saatleri (Gece 00:00'dan, bugünkü başlangıç saatine kadar)
-        // Böylece kullanıcıya her zaman 24 saatlik kesintisiz bir rezervasyon penceresi sunulur.
-        for (hour in 0 until startHour) {
-            index++
-
-            val slotStart = LocalDateTime.of(selectedDate.toLocalDate().plusDays(1), LocalTime.of(hour, 0))
-            val slotEnd = slotStart.plusHours(1)
-
-            val isOccupied = allReservations.any { reservation ->
-                slotStart.isBefore(reservation.endTime) && reservation.startTime.isBefore(slotEnd)
-            }
-
-            val endHour = if (hour == 23) 0 else hour + 1
-            val label = String.format("%02d:00 - %02d:00", hour, endHour)
-
-            slots.add(
-                TimeSlot(
-                    index = index,
-                    hour = hour,
-                    timeLabel = label,
-                    isAvailable = !isOccupied
-                )
-            )
-        }
-
-        // UI'ı tetiklemek için State'i güncelliyoruz
-        _state.value = _state.value.copy(timeSlots = slots)
-
-        return slots
+        _state.update { it.copy(timeSlots = slots) }
     }
 
 
+    fun fetchDirections(
+        originLat: Double,
+        originLng: Double,
+        destLat: Double,
+        destLng: Double
+    ) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoadingRoute = true, routeError = null) }
 
+            directionsRepo.getDirections(
+                originLat = originLat,
+                originLng = originLng,
+                destLat = destLat,
+                destLng = destLng
+            ).fold(
+                onSuccess = { response ->
+                    val route = response.routes.firstOrNull()
+                    val leg = route?.legs?.firstOrNull()
 
+                    _state.update {
+                        it.copy(
+                            isLoadingRoute = false,
+                            routePolyline = route?.overview_polyline?.points,
+                            routeDistance = leg?.distance?.text,
+                            routeDuration = leg?.duration?.text,
+                            routeSteps = leg?.steps ?: emptyList()
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _state.update {
+                        it.copy(
+                            isLoadingRoute = false,
+                            routeError = error.message
+                        )
+                    }
+                }
+            )
+        }
+    }
 
+    fun setUserLocation(lat : Double, lng : Double){
+        _state.update {
+            it.copy(
+                userLocation = LatLng(lat,lng)
+            )
+        }
+    }
+
+    fun clearRoute() {
+        _state.update {
+            it.copy(
+                routePolyline = null,
+                routeDistance = null,
+                routeDuration = null,
+                routeSteps = emptyList(),
+                routeError = null
+            )
+        }
+    }
 }
 
 data class UiState(
@@ -400,6 +440,13 @@ data class UiState(
     val currentCharger: Charger? = null,
     val currentReservation: Reservation? = null,
     val firstChoice: TimeSlot? = null,
-    val secondChoice: TimeSlot? = null
-)
+    val secondChoice: TimeSlot? = null,
+    val routePolyline: String? = null,
+    val routeDistance: String? = null,
+    val routeDuration: String? = null,
+    val routeSteps: List<Step> = emptyList(),
+    val isLoadingRoute: Boolean = false,
+    val routeError: String? = null,
 
+    val userLocation : LatLng? = null
+)

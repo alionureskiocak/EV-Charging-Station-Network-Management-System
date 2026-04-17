@@ -28,6 +28,7 @@ import android.Manifest
 import androidx.compose.ui.graphics.Color
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresPermission
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -63,6 +64,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
@@ -95,53 +97,135 @@ import com.example.fse_project.data.local.database.entities.ConnectorType
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.R
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.maps.android.PolyUtil
+import com.google.maps.android.compose.Polyline
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.Queue
 
+
+@RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-     viewModel: MainViewModel = hiltViewModel()
+    viewModel: MainViewModel = hiltViewModel()
 ) {
-
     val state by viewModel.state.collectAsState()
 
     val currentUser = state.currentUser
     val reservations = state.usersReservations
-    val vehicle = state.currentVehicle
     val usersVehicles = state.usersVehicles
     val stations = state.allStations
-    val chargerItems = state.chargerItems
     val timeSlots = if (state.restrictedTimeSlots == emptyList<TimeSlot>()) state.timeSlots else state.restrictedTimeSlots
+    val station = state.currentStation
+    val vehicle = state.currentVehicle
+
+    val routePolyline = state.routePolyline
+    val routeDistance = state.routeDistance
+    val routeDuration = state.routeDuration
+    val isLoadingRoute = state.isLoadingRoute
+
+    val chargerItems = remember(station, vehicle) {
+        station?.chargers?.map { charger ->
+            val clickable = vehicle != null &&
+                    charger.connectorType == vehicle.connectorType &&
+                    charger.chargerStatus != ChargerStatus.OFFLINE
+
+            val text = when {
+                charger.chargerStatus == ChargerStatus.OFFLINE -> "Çevrimdışı"
+                vehicle == null -> "Araç seç"
+                charger.connectorType != vehicle.connectorType -> "Uyumsuz"
+                charger.chargerStatus == ChargerStatus.FULL -> "Dolu"
+                charger.chargerStatus == ChargerStatus.OCCUPIED -> "Dolu (rezervasyon var)"
+                else -> "Uygun"
+            }
+
+            val color = when (charger.chargerStatus) {
+                ChargerStatus.AVAILABLE -> Color(0xFF76FF03)
+                ChargerStatus.OCCUPIED -> Color(0xFFFF9100)
+                ChargerStatus.FULL -> Color.Yellow
+                else -> Color.Red
+            }
+
+            ChargerItem(
+                charger = charger,
+                clickable = clickable,
+                clickableText = text,
+                statusColor = color
+            )
+        } ?: emptyList()
+    }
 
     var currentStation = state.currentStation
     var showCarDialog by remember { mutableStateOf(false) }
     var showCarAddDialog by remember { mutableStateOf(false) }
     var isSheetOpen by remember { mutableStateOf(false) }
 
+
+    if (isLoadingRoute) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+    }
+
+
     val izmir = LatLng(38.4237, 27.1428)
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(izmir, 10f)
     }
+
+    val pathPoints = remember(routePolyline) {
+        routePolyline?.let { PolyUtil.decode(it) } ?: emptyList()
+    }
+
+    LaunchedEffect(pathPoints) {
+        if (pathPoints.isNotEmpty()) {
+            val builder = LatLngBounds.Builder()
+            pathPoints.forEach { builder.include(it) }
+            val bounds = builder.build()
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngBounds(bounds, 100),
+                durationMs = 1000
+            )
+        }
+    }
+
+
+
     val context = LocalContext.current
-    LaunchedEffect(Unit) {
-        if (vehicle == null){
+
+    LaunchedEffect(currentUser, usersVehicles) {
+        if (currentUser != null && vehicle == null) {
             showCarDialog = true
         }
     }
 
-    LaunchedEffect(vehicle) {
-        println(vehicle)
+    val fusedLocationClient = remember {
+        LocationServices.getFusedLocationProviderClient(context)
     }
+    fusedLocationClient.lastLocation
+        .addOnSuccessListener { location ->
+            if (location!=null && station!=null){
+                val lat = location.latitude
+                val long = location.longitude
+                viewModel.setUserLocation(lat,long)
 
-    //if (showChargers){
-//
-    //}
+            }
 
-    if (showCarDialog){
+
+        }
+
+    if (showCarDialog) {
         CarDialog(
             usersVehicles = usersVehicles,
             onDismiss = { showCarDialog = false },
@@ -149,77 +233,76 @@ fun MainScreen(
             onVehicleSelect = {
                 viewModel.setCurrentVehicle(it)
                 showCarDialog = false
-                              },
+            },
         )
     }
 
-    if (showCarAddDialog){
+    if (showCarAddDialog) {
         CarAddDialog(
             onDismiss = { showCarAddDialog = false },
             currentUserId = currentUser?.id,
             onCarAdd = {
                 viewModel.addVehicle(it)
-                Toast.makeText(context,"",Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "", Toast.LENGTH_SHORT).show()
             }
         )
     }
 
     var hasLocationPermission by remember { mutableStateOf(false) }
-    CheckPermission{
+    CheckPermission {
         hasLocationPermission = it
     }
 
     val properties by remember(hasLocationPermission) {
         mutableStateOf(
             MapProperties(
-                isMyLocationEnabled = if (hasLocationPermission) true else false
+                isMyLocationEnabled = hasLocationPermission
             )
         )
     }
 
 
-    val list = remember(stations) {
-        stations.map { station ->
-            UserMarker(
-                latLng = LatLng(station.latitude, station.longitude),
-                title = station.name,
-                color = when (station.status) {
-                    StationStatus.AVAILABLE -> BitmapDescriptorFactory.HUE_GREEN
-                    StationStatus.OCCUPIED -> BitmapDescriptorFactory.HUE_ORANGE
-                    else -> BitmapDescriptorFactory.HUE_RED
-                }
-            )
-        }
-    }
-
-    // val routePoints = listOf(izmir)
-    // val testPolyline = "euuiF_veeDtFJItH@dKBdFAbDAlHAr@M|@A@A?A@CDAD?LDHLZBd@AjEAhHBnD?xH@xCR~BXzDSp@s@FaIrA}@Li@LuAh@IB@JBfDFzC@rDABCH@R@B@@KxAMdAM\\m@z@]XsBjBIBEFAB_@Jk@?]SOaAGOMMa@K_@B[RMJCPETEj@D`@FTj@hD`@~CPpAx@|F|@lE|@zDTt@bBtGv@`CvApFbB`G`@xAhEpOnAxE_C`B{A|@}ApAl@n@OP[ZQJ"
-    //
-    // val pathPoints = remember(testPolyline) {
-    //     PolyUtil.decode(testPolyline)
-    // }
-
-    //val scope = rememberCoroutineScope()
-//
-    //LaunchedEffect(pathPoints) {
-    //    if (pathPoints.isNotEmpty()) {
-    //        val builder = LatLngBounds.Builder()
-    //        pathPoints.forEach { builder.include(it) }
-    //        val bounds = builder.build()
-//
-    //        cameraPositionState.animate(
-    //            update = CameraUpdateFactory.newLatLngBounds(bounds, 100),
-    //            durationMs = 1000
-    //        )
-    //    }
-    //}
-
     Scaffold(
         bottomBar = {}
     ) { paddingValues ->
-        Column(modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)){
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            if (routeDistance != null && routeDuration != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = routeDistance,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = routeDuration,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        TextButton(onClick = { viewModel.clearRoute() }) {
+                            Text("Rotayı Kapat")
+                        }
+                    }
+                }
+            }
             GoogleMap(
                 modifier = Modifier
                     .fillMaxSize()
@@ -230,32 +313,43 @@ fun MainScreen(
                     currentUser?.let {
                         println(currentUser.name)
                     }
-
                 }
             ) {
-                // if (pathPoints.isNotEmpty()) {
-                //     Polyline(
-                //         points = pathPoints,
-                //         color = Color(0xFF2196F3), // Klasik Google Maps mavisi
-                //         width = 12f,
-                //         geodesic = true // Dünyanın eğriliğine göre hesapla
-                //     )
-                // }
+                if (pathPoints.isNotEmpty()) {
+                    Polyline(
+                        points = pathPoints,
+                        color = Color(0xFF2196F3),
+                        width = 12f,
+                        geodesic = true
+                    )
+                }
+
+
+
+
+                if (pathPoints.isNotEmpty()) {
+                    Polyline(
+                        points = pathPoints,
+                        color = Color(0xFF2196F3),
+                        width = 12f,
+                        geodesic = true
+                    )
+                }
 
                 stations.forEach { station ->
-
                     val color = if (vehicle != null) {
-
                         val compatibleChargers = station.chargers.filter { it.connectorType == vehicle.connectorType }
                         when {
                             compatibleChargers.isEmpty() || compatibleChargers.all { it.chargerStatus == ChargerStatus.OFFLINE } -> BitmapDescriptorFactory.HUE_RED
                             compatibleChargers.any { it.chargerStatus == ChargerStatus.AVAILABLE } -> BitmapDescriptorFactory.HUE_GREEN
+                            compatibleChargers.all { it.chargerStatus == ChargerStatus.FULL } -> BitmapDescriptorFactory.HUE_YELLOW
                             else -> BitmapDescriptorFactory.HUE_ORANGE
                         }
                     } else {
                         when (station.status) {
                             StationStatus.AVAILABLE -> BitmapDescriptorFactory.HUE_GREEN
                             StationStatus.OCCUPIED -> BitmapDescriptorFactory.HUE_ORANGE
+                            StationStatus.FULL -> BitmapDescriptorFactory.HUE_YELLOW
                             else -> BitmapDescriptorFactory.HUE_RED
                         }
                     }
@@ -265,28 +359,27 @@ fun MainScreen(
                         icon = BitmapDescriptorFactory.defaultMarker(color),
                         onClick = {
                             viewModel.setCurrentStation(station.id)
-                            viewModel.getChargersForStation(station.id)
                             isSheetOpen = true
                             true
                         }
                     )
                 }
             }
-            Box(
-            ){
 
+            Box {
                 var showChargersForAnimation by remember { mutableStateOf(true) }
                 val sheetState = rememberModalBottomSheetState()
 
-                if (isSheetOpen){
+                if (isSheetOpen) {
                     ModalBottomSheet(
                         sheetState = sheetState,
                         onDismissRequest = {
                             isSheetOpen = false
                             showChargersForAnimation = true
                             viewModel.clearSelectedTimes()
-                        }){
-                        Box(modifier  =Modifier.fillMaxHeight(0.45f)){
+                        }
+                    ) {
+                        Box(modifier = Modifier.fillMaxHeight(0.45f)) {
                             AnimatedContent(
                                 targetState = showChargersForAnimation,
                                 transitionSpec = {
@@ -295,25 +388,22 @@ fun MainScreen(
                                             durationMillis = 500,
                                             easing = FastOutSlowInEasing
                                         ),
-                                        initialOffsetX = {if (targetState) -600 else 600}
+                                        initialOffsetX = { if (targetState) -600 else 600 }
                                     ) + fadeIn() togetherWith slideOutHorizontally(
                                         animationSpec = tween(
                                             durationMillis = 500,
                                             easing = FastOutSlowInEasing
                                         ),
-                                        targetOffsetX = {if (targetState) 600 else -600}
+                                        targetOffsetX = { if (targetState) 600 else -600 }
                                     ) + fadeOut()
-
                                 }
                             ) {
                                 if (it) {
                                     ChargerChoiceScreen(
                                         chargers = chargerItems,
                                         onChargerClick = { chargerId ->
-                                            viewModel.getReservationTimeSlots(
-                                                chargerId = chargerId
-                                            )
                                             viewModel.setCurrentCharger(chargerId)
+                                            viewModel.getReservationTimeSlots(chargerId = chargerId)
                                             showChargersForAnimation = false
                                         },
                                         station = currentStation!!
@@ -323,24 +413,22 @@ fun MainScreen(
                                         timeSlots = timeSlots,
                                         selectedStartIndex = state.selectedStartIndex,
                                         selectedEndIndex = state.selectedEndIndex,
-                                        onTimeSlotSelected = {viewModel.selectTimeSlot(it)},
+                                        onTimeSlotSelected = { viewModel.selectTimeSlot(it) },
                                         onReservationConfirm = { str, end ->
-                                            viewModel.createReservation(str,end)
-                                            println("hoist")
+                                            viewModel.createReservation()
+                                            //viewModel.fetchDirections()
                                         }
-
                                     )
                                 }
                             }
                         }
-
                     }
                 }
-
             }
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.fse_project.App.Companion.BASE_URL
 import com.example.fse_project.data.local.database.AppDao
 import com.example.fse_project.data.local.database.AppDatabase
 import com.example.fse_project.data.local.database.entities.ChargerEntity
@@ -19,9 +20,12 @@ import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.data.local.database.entities.UserEntity
 import com.example.fse_project.data.local.database.entities.VehicleEntity
 import com.example.fse_project.data.local.database.entities.WalletEntity
+import com.example.fse_project.data.remote.service.DirectionsApi
+import com.example.fse_project.data.repository.DirectionsRepositoryImpl
 import com.example.fse_project.data.repository.ReservationRepositoryImpl
 import com.example.fse_project.data.repository.StationRepositoryImpl
 import com.example.fse_project.data.repository.UserRepositoryImpl
+import com.example.fse_project.domain.repository.DirectionsRepository
 import com.example.fse_project.domain.repository.ReservationRepository
 import com.example.fse_project.domain.repository.StationRepository
 import com.example.fse_project.domain.repository.UserRepository
@@ -33,12 +37,30 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Provider
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    @Singleton
+    @Provides
+    fun provideDirectionsApi() : DirectionsApi{
+        return Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(DirectionsApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDirectionsRepository(api: DirectionsApi): DirectionsRepository {
+        return DirectionsRepositoryImpl(api)
+    }
 
     data class PrepopulatedStation(val name: String, val address: String, val lat: Double, val lng: Double)
 
@@ -86,11 +108,6 @@ object AppModule {
                         dao.insertWallet(defaultWallet4)
                         val defaultVehicle4 = VehicleEntity(id = 0, ownerId = newUserId4, brand = "TOGG", model = "T10F", capacity = 80, connectorType = ConnectorType.TYPE_2, licensePlate = "35 OZM 35")
                         dao.insertVehicle(defaultVehicle4)
-
-
-
-
-
 
                         val stationsData = listOf(
                             // Yeni Eklenenler (Balçova, Gaziemir, Karabağlar, Buca)
@@ -211,3 +228,4 @@ object AppModule {
         }
     }
 }
+

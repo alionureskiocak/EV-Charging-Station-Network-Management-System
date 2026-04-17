@@ -46,5 +46,6 @@ enum class ConnectorType{
 enum class ChargerStatus{
     AVAILABLE,
     OCCUPIED,
+    FULL,
     OFFLINE
 }
