@@ -102,6 +102,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.PolyUtil
 import com.google.maps.android.compose.Polyline
+import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -124,6 +125,7 @@ fun MainScreen(
     val station = state.currentStation
     val vehicle = state.currentVehicle
     val currentReservation = state.currentReservation
+    val userLocation = state.userLocation
 
     val routePolyline = state.routePolyline
     val routeDistance = state.routeDistance
@@ -215,17 +217,30 @@ fun MainScreen(
     val fusedLocationClient = remember {
         LocationServices.getFusedLocationProviderClient(context)
     }
-    fusedLocationClient.lastLocation
-        .addOnSuccessListener { location ->
-            if (location!=null && station!=null){
-                val lat = location.latitude
-                val long = location.longitude
-                viewModel.setUserLocation(lat,long)
+ //  fusedLocationClient.lastLocation
+ //      .addOnSuccessListener { location ->
+ //          if (location!=null && station!=null){
+ //              val lat = location.latitude
+ //              val long = location.longitude
+ //              viewModel.setUserLocation(lat,long)
+ //          }
+ //      }
+    //LaunchedEffect(fusedLocationClient.lastLocation) {
+    //    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+    //        location?.let {
+    //            viewModel.setUserLocation(it.latitude, it.longitude)
+    //        }
+    //    }
+    //}
 
+    LaunchedEffect(Unit) {
+        while (true) {
+            fusedLocationClient.lastLocation.await()?.let {
+                viewModel.setUserLocation(it.latitude, it.longitude)
             }
-
-
+            kotlinx.coroutines.delay(5000)
         }
+    }
 
     if (showCarDialog) {
         CarDialog(
@@ -253,6 +268,20 @@ fun MainScreen(
     var hasLocationPermission by remember { mutableStateOf(false) }
     CheckPermission {
         hasLocationPermission = it
+    }
+
+    LaunchedEffect(currentReservation, userLocation) {
+        if (currentReservation != null && userLocation!= null) {
+            if (currentStation!= null){
+                viewModel.fetchDirections(
+                    userLocation.latitude,
+                    userLocation.longitude,
+                    currentStation.latitude,
+                    currentStation.longitude
+                )
+            }
+
+        }
     }
 
     val properties by remember(hasLocationPermission) {
