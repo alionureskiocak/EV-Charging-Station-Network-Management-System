@@ -123,17 +123,19 @@ fun MainScreen(
     val timeSlots = if (state.restrictedTimeSlots == emptyList<TimeSlot>()) state.timeSlots else state.restrictedTimeSlots
     val station = state.currentStation
     val vehicle = state.currentVehicle
+    val currentReservation = state.currentReservation
 
     val routePolyline = state.routePolyline
     val routeDistance = state.routeDistance
     val routeDuration = state.routeDuration
     val isLoadingRoute = state.isLoadingRoute
 
-    val chargerItems = remember(station, vehicle) {
+    val chargerItems = remember(station, vehicle,currentReservation) {
         station?.chargers?.map { charger ->
             val clickable = vehicle != null &&
                     charger.connectorType == vehicle.connectorType &&
                     charger.chargerStatus != ChargerStatus.OFFLINE
+                    && currentReservation == null
 
             val text = when {
                 charger.chargerStatus == ChargerStatus.OFFLINE -> "Çevrimdışı"
@@ -261,6 +263,9 @@ fun MainScreen(
         )
     }
 
+    LaunchedEffect(routeDistance,routeDuration) {
+        println("distance: $routeDistance duration: $routeDuration")
+    }
 
     Scaffold(
         bottomBar = {}
@@ -270,7 +275,7 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (routeDistance != null && routeDuration != null) {
+            if (currentReservation!=null) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -287,12 +292,12 @@ fun MainScreen(
                     ) {
                         Column {
                             Text(
-                                text = routeDistance,
+                                text = routeDistance?:"Konum açınız",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = routeDuration,
+                                text = routeDuration?:"Konum açınız",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

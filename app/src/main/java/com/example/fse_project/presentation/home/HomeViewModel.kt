@@ -52,11 +52,9 @@ class MainViewModel @Inject constructor(
         getUserProfile()
         getUsers()
         observeStationsWithReservations()
-        // BUG FIX 1: allReservations hiç yüklenmiyordu, init'e eklendi
         observeAllReservations()
     }
 
-    // BUG FIX 1: allReservations'ı sürekli dinle (getReservationTimeSlots buna bakıyor)
     private fun observeAllReservations() {
         viewModelScope.launch {
             reservationRepo.getAllReservations().collect { reservations ->
@@ -128,21 +126,6 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun getAllReservations() {
-        viewModelScope.launch {
-            reservationRepo.getAllReservations().collect {
-                _state.update { state -> state.copy(allReservations = it) }
-            }
-        }
-    }
-
-    fun getAllStations() {
-        viewModelScope.launch {
-            stationRepo.getStations().collect {
-                _state.update { state -> state.copy(allStations = it) }
-            }
-        }
-    }
 
     fun getUsersReservations(id: Long) {
         viewModelScope.launch {
@@ -186,8 +169,7 @@ class MainViewModel @Inject constructor(
         _state.update { it.copy(currentVehicle = vehicle) }
     }
 
-    // BUG FIX 2: Repo'dan çekmek yerine allStations'tan al —
-    // Hesaplanmış charger status'ları korunuyor
+
     fun setCurrentStation(stationId: Long) {
         val station = _state.value.allStations.find { it.id == stationId }
         if (station != null) {
@@ -211,12 +193,6 @@ class MainViewModel @Inject constructor(
                 val charger = stationRepo.getChargerById(chargerId)
                 _state.update { it.copy(currentCharger = charger) }
             }
-        }
-    }
-
-    fun updateChargerStatus(id: Long, newStatus: ChargerStatus) {
-        viewModelScope.launch {
-            stationRepo.updateChargerStatus(id, newStatus)
         }
     }
 
@@ -283,21 +259,20 @@ class MainViewModel @Inject constructor(
                 )
                 reservationRepo.createReservation(reservation)
                 clearSelectedTimes()
-                // BUG FIX 1: observeAllReservations zaten dinliyor, manuel çağrıya gerek yok
-                // ama yine de kullanıcının rezervasyonlarını güncelle
+
                 _state.value.currentUser?.let { getUsersReservations(it.id) }
                  val station = _state.value.currentStation!!
 
                 val userLocation = _state.value.userLocation
-                userLocation.let {
+                userLocation?.let {
                     fetchDirections(
-                        originLat = userLocation!!.latitude,
+                        originLat = userLocation.latitude,
                         originLng = userLocation.longitude,
                         destLat = station.latitude,
                         destLng = station.longitude
                     )
                 }
-
+                _state.update { it.copy(currentReservation = reservation) }
             }
         }
     }
@@ -417,7 +392,8 @@ class MainViewModel @Inject constructor(
                 routeDistance = null,
                 routeDuration = null,
                 routeSteps = emptyList(),
-                routeError = null
+                routeError = null,
+                currentReservation = null
             )
         }
     }
