@@ -270,7 +270,7 @@ fun MainScreen(
         hasLocationPermission = it
     }
 
-    LaunchedEffect(currentReservation, userLocation) {
+    /*LaunchedEffect(currentReservation, userLocation) {
         if (currentReservation != null && userLocation!= null) {
             if (currentStation!= null){
                 viewModel.fetchDirections(
@@ -281,6 +281,32 @@ fun MainScreen(
                 )
             }
 
+        }
+    }*/
+
+    LaunchedEffect(currentReservation, userLocation) {
+        if (currentReservation != null && userLocation != null) {
+            currentStation?.let {
+                val destination = LatLng(it.latitude, it.longitude)
+                val distanceMoved = userLocation.let { loc ->
+                    val results = FloatArray(1)
+                    android.location.Location.distanceBetween(
+                        loc.latitude, loc.longitude,
+                        destination.latitude, destination.longitude,
+                        results
+                    )
+                    results[0]
+                }
+                // Hedefe 50 metreden fazlaysa güncelle
+                if (distanceMoved > 50f) {
+                    viewModel.fetchDirections(
+                        userLocation.latitude,
+                        userLocation.longitude,
+                        it.latitude,
+                        it.longitude
+                    )
+                }
+            }
         }
     }
 
