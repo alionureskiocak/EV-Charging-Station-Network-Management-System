@@ -25,6 +25,7 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import android.Manifest
+import android.location.Location
 import androidx.compose.ui.graphics.Color
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -51,6 +52,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -59,6 +61,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -72,8 +81,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -84,11 +96,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import co.yml.charts.common.extensions.isNotNull
 import coil.compose.AsyncImage
 import com.bumptech.glide.load.resource.bitmap.BitmapResource
@@ -97,11 +112,14 @@ import com.example.fse_project.data.local.database.entities.ConnectorType
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.R
+import com.example.fse_project.presentation.navigation.BottomNavigationBarItem
+import com.example.fse_project.presentation.navigation.Screen
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.PolyUtil
 import com.google.maps.android.compose.Polyline
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -109,11 +127,11 @@ import java.time.LocalTime
 import java.util.Queue
 
 
-@RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    viewModel: MainViewModel = hiltViewModel()
+    viewModel: MainViewModel = hiltViewModel(),
+    navController : NavHostController
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -132,7 +150,46 @@ fun MainScreen(
     val routeDuration = state.routeDuration
     val isLoadingRoute = state.isLoadingRoute
 
-    val chargerItems = remember(station, vehicle,currentReservation) {
+    val showResCancelDialog = state.showResCancelDialog
+
+    var hasLocationPermission by remember { mutableStateOf(false) }
+    CheckPermission {
+        hasLocationPermission = it
+    }
+
+    if (showResCancelDialog){
+        AlertDialog(
+            onDismissRequest = {viewModel.changeCancelDialogStatus()},
+            title = {
+                Text("Rezervasyon İptali")
+            },
+            text = {
+                Text("Rezervasyonunuzu iptal etmek istediğinize emin misiniz?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteReservation(currentReservation!!.id)
+
+                    }
+                ) {
+                    Text("İptal Et")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        viewModel.changeCancelDialogStatus()
+                    }
+                ) {
+                    Text("Vazgeç")
+                }
+            }
+
+        )
+    }
+
+    val chargerItems = remember(station, vehicle,currentReservation,reservations) {
         station?.chargers?.map { charger ->
             val clickable = vehicle != null &&
                     charger.connectorType == vehicle.connectorType &&
@@ -142,9 +199,9 @@ fun MainScreen(
             val text = when {
                 charger.chargerStatus == ChargerStatus.OFFLINE -> "Çevrimdışı"
                 vehicle == null -> "Araç seç"
-                charger.connectorType != vehicle.connectorType -> "Uyumsuz"
+                charger.connectorType != vehicle.connectorType -> "Uyumsuz Soket"
                 charger.chargerStatus == ChargerStatus.FULL -> "Dolu"
-                charger.chargerStatus == ChargerStatus.OCCUPIED -> "Dolu (rezervasyon var)"
+                charger.chargerStatus == ChargerStatus.OCCUPIED -> "İleri tarih için rezervasyon var"
                 else -> "Uygun"
             }
 
@@ -233,13 +290,20 @@ fun MainScreen(
     //    }
     //}
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            fusedLocationClient.lastLocation.await()?.let {
-                viewModel.setUserLocation(it.latitude, it.longitude)
+    LaunchedEffect(currentReservation?.id) {
+        println(currentReservation?.id)
+    }
+
+    LaunchedEffect(Unit)  {
+        if (hasLocationPermission){
+            while (true) {
+                fusedLocationClient.lastLocation.await()?.let {
+                    viewModel.setUserLocation(it.latitude, it.longitude)
+                }
+                delay(5000)
             }
-            kotlinx.coroutines.delay(5000)
         }
+
     }
 
     if (showCarDialog) {
@@ -265,10 +329,7 @@ fun MainScreen(
         )
     }
 
-    var hasLocationPermission by remember { mutableStateOf(false) }
-    CheckPermission {
-        hasLocationPermission = it
-    }
+
 
     /*LaunchedEffect(currentReservation, userLocation) {
         if (currentReservation != null && userLocation!= null) {
@@ -290,7 +351,7 @@ fun MainScreen(
                 val destination = LatLng(it.latitude, it.longitude)
                 val distanceMoved = userLocation.let { loc ->
                     val results = FloatArray(1)
-                    android.location.Location.distanceBetween(
+                    Location.distanceBetween(
                         loc.latitude, loc.longitude,
                         destination.latitude, destination.longitude,
                         results
@@ -322,8 +383,9 @@ fun MainScreen(
         println("distance: $routeDistance duration: $routeDuration")
     }
 
+
     Scaffold(
-        bottomBar = {}
+
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -334,31 +396,95 @@ fun MainScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        Column {
-                            Text(
-                                text = routeDistance?:"Konum açınız",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = routeDuration?:"Konum açınız",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                        // 🔹 İstasyon adı
+                        Text(
+                            text = currentReservation.station.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 🔹 Mesafe + Süre
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    routeDistance ?: "Konum aç",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.AccessTime,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    routeDuration ?: "Konum aç",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
                         }
-                        TextButton(onClick = { viewModel.clearRoute() }) {
-                            Text("Rotayı Kapat")
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 🔹 Charger bilgisi
+                        Text(
+                            text = "Şarj: ${currentReservation.charger.chargerType}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // 🔹 Saat bilgisi
+                        Text(
+                            text = "${currentReservation.startTime.toLocalTime()} - ${currentReservation.endTime.toLocalTime()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+
+                        Button(
+                            onClick = {
+                                viewModel.changeCancelDialogStatus()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Rezervasyonu İptal Et")
                         }
                     }
                 }
@@ -912,6 +1038,21 @@ fun CheckPermission(onPermissionGranted: (Boolean) -> Unit) {
         if (!hasLocationPermission) {
             launcher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+    }
+}
+
+@Composable
+fun InfoChip(icon: ImageVector, text: String) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall)
     }
 }
 

@@ -1,6 +1,5 @@
 package com.example.fse_project.presentation.home
 
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,7 +10,6 @@ import com.example.fse_project.data.remote.model.Step
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
-import com.example.fse_project.domain.model.StationStatus
 import com.example.fse_project.domain.model.User
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.domain.repository.DirectionsRepository
@@ -196,6 +194,15 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    fun deleteReservation(resId : Long){
+        viewModelScope.launch {
+            reservationRepo.deleteReservation(resId)
+            clearRoute()
+            changeCancelDialogStatus()
+        }
+
+    }
+
     fun clearSelectedTimes() {
         _state.update { it.copy(selectedStartIndex = null, selectedEndIndex = null) }
     }
@@ -257,7 +264,7 @@ class MainViewModel @Inject constructor(
                     pricePerKwh = 4.0,
                     status = ReservationStatus.ACTIVE
                 )
-                reservationRepo.createReservation(reservation)
+               val id = reservationRepo.createReservation(reservation)
                 clearSelectedTimes()
 
                 _state.value.currentUser?.let { getUsersReservations(it.id) }
@@ -272,7 +279,7 @@ class MainViewModel @Inject constructor(
                         destLng = station.longitude
                     )
                 }
-                _state.update { it.copy(currentReservation = reservation) }
+                _state.update { it.copy(currentReservation = reservation.copy(id = id)) }
             }
         }
     }
@@ -397,6 +404,10 @@ class MainViewModel @Inject constructor(
             )
         }
     }
+
+    fun changeCancelDialogStatus(){
+        _state.update { it.copy(showResCancelDialog = !_state.value.showResCancelDialog) }
+    }
 }
 
 data class UiState(
@@ -423,6 +434,7 @@ data class UiState(
     val routeSteps: List<Step> = emptyList(),
     val isLoadingRoute: Boolean = false,
     val routeError: String? = null,
+    val showResCancelDialog : Boolean = false,
 
     val userLocation : LatLng? = null
 )
