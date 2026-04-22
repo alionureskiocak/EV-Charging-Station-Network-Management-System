@@ -152,6 +152,10 @@ fun MainScreen(
 
     val showResCancelDialog = state.showResCancelDialog
 
+    LaunchedEffect(currentReservation) {
+        println("res: $currentReservation")
+    }
+
     var hasLocationPermission by remember { mutableStateOf(false) }
     CheckPermission {
         hasLocationPermission = it

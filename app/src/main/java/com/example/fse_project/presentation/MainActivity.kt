@@ -19,14 +19,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavType
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.example.fse_project.presentation.navigation.Screen
 import com.example.fse_project.presentation.login.LoginScreen
 import com.example.fse_project.presentation.home.MainScreen
+import com.example.fse_project.presentation.home.MainViewModel
 import com.example.fse_project.presentation.navigation.BottomNavigationBarItem
 import com.example.fse_project.presentation.profile.ProfileScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -44,7 +45,7 @@ class MainActivity : ComponentActivity() {
                     title = "main",
                     selectedIcon = Icons.Filled.Home,
                     unselectedIcon = Icons.Outlined.Home
-                ),BottomNavigationBarItem(
+                ), BottomNavigationBarItem(
                     title = "profile",
                     selectedIcon = Icons.Filled.Person,
                     unselectedIcon = Icons.Outlined.Person
@@ -69,13 +70,13 @@ class MainActivity : ComponentActivity() {
                                         imageVector = if (selectedItemIndex == index) item.selectedIcon else item.unselectedIcon,
                                         contentDescription = item.title
                                     )
-                                } //label
+                                }
                             )
                         }
                     }
                 }
             ) { padding ->
-                NavHost(navController = navController, startDestination = Screen.LoginScreen.route,
+                /* NavHost(navController = navController, startDestination = Screen.LoginScreen.route,
                     modifier = Modifier.padding(padding)
                     ){
                     composable(Screen.LoginScreen.route) {
@@ -88,11 +89,56 @@ class MainActivity : ComponentActivity() {
                         ProfileScreen()
                     }
                 }
+            }*/
+
+                NavHost(
+                    navController = navController,
+                    startDestination = "auth"
+                ) {
+
+                    navigation(
+                        startDestination = Screen.LoginScreen.route,
+                        route = "auth"
+                    ) {
+                        composable(Screen.LoginScreen.route) {
+                            LoginScreen(navController)
+                        }
+                    }
+
+                    navigation(
+                        startDestination = Screen.MainScreen.route,
+                        route = "main_graph"
+                    ) {
+
+                        composable(Screen.MainScreen.route) { backStackEntry ->
+
+                            val parentEntry = remember(backStackEntry) {
+                                navController.getBackStackEntry("main_graph")
+                            }
+
+                            val viewModel: MainViewModel = hiltViewModel(parentEntry)
+
+                            MainScreen(
+                                navController = navController,
+                                viewModel = viewModel
+                            )
+                        }
+
+                        composable(Screen.ProfileScreen.route) { backStackEntry ->
+
+                            val parentEntry = remember(backStackEntry) {
+                                navController.getBackStackEntry("main_graph")
+                            }
+
+                            val viewModel: MainViewModel = hiltViewModel(parentEntry)
+
+                            ProfileScreen(viewModel)
+                        }
+                    }
+                }
+
+
             }
-
-
-
-
         }
     }
 }

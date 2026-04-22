@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,15 +32,56 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.fse_project.presentation.navigation.Screen
+import com.example.fse_project.presentation.home.CheckPermission
+import com.example.fse_project.presentation.home.MainViewModel
+
 
 @Composable
-fun ProfileScreen(viewModel : ProfileViewModel = hiltViewModel()) {
-
+fun ProfileScreen(
+    viewModel: MainViewModel
+) {
     val state by viewModel.state.collectAsState()
-    val reservations = state.userReservations
+
     val user = state.currentUser
+    val reservations = state.usersReservations
+    val currentReservation = state.currentReservation
+    val showResCancelDialog = state.showResCancelDialog
+
+    LaunchedEffect(currentReservation) {
+        println("res: $currentReservation")
+    }
+
+    if (showResCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.changeCancelDialogStatus() },
+            title = {
+                Text("Rezervasyon İptali")
+            },
+            text = {
+                Text("Rezervasyonunuzu iptal etmek istediğinize emin misiniz?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteReservation(currentReservation!!.id)
+
+                    }
+                ) {
+                    Text("İptal Et")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        viewModel.changeCancelDialogStatus()
+                    }
+                ) {
+                    Text("Vazgeç")
+                }
+            }
+
+        )
+    }
 
     LaunchedEffect(user) {
         println("$user")
@@ -49,9 +91,9 @@ fun ProfileScreen(viewModel : ProfileViewModel = hiltViewModel()) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (reservations.isEmpty()){
+        if (reservations.isEmpty()) {
             Text("Boş bura")
-        }else{
+        } else {
             LazyColumn {
 
                 items(reservations) { res ->
@@ -112,10 +154,10 @@ fun ProfileScreen(viewModel : ProfileViewModel = hiltViewModel()) {
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                   // Text(
-                                   //     routeDuration ?: "Konum aç",
-                                   //     style = MaterialTheme.typography.bodySmall
-                                   // )
+                                    // Text(
+                                    //     routeDuration ?: "Konum aç",
+                                    //     style = MaterialTheme.typography.bodySmall
+                                    // )
                                 }
                             }
 
