@@ -342,6 +342,11 @@ class MainViewModel @Inject constructor(
         _state.update { it.copy(timeSlots = slots) }
     }
 
+    fun logOut(){
+        viewModelScope.launch {
+            sessionManager.logOut()
+        }
+    }
 
     fun fetchDirections(
         originLat: Double,
@@ -399,8 +404,7 @@ class MainViewModel @Inject constructor(
                 routeDistance = null,
                 routeDuration = null,
                 routeSteps = emptyList(),
-                routeError = null,
-                currentReservation = null
+                routeError = null
             )
         }
     }

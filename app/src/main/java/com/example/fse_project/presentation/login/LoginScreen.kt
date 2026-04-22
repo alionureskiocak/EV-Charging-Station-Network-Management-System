@@ -43,7 +43,10 @@ fun LoginScreen(navController: NavController,viewModel: LoginViewModel = hiltVie
 
     LaunchedEffect(isLoginSuccessful) {
         if (isLoginSuccessful){
-            navController.navigate(Screen.MainScreen.route)
+            navController.navigate("main_graph") {
+                //viewModel.setUserId()
+                popUpTo("auth") { inclusive = true }
+            }
         }
     }
     LaunchedEffect(error) {

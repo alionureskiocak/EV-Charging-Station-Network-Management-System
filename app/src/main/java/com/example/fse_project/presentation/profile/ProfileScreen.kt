@@ -32,13 +32,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.fse_project.data.datastore.SessionManager
 import com.example.fse_project.presentation.home.CheckPermission
 import com.example.fse_project.presentation.home.MainViewModel
 
 
 @Composable
 fun ProfileScreen(
-    viewModel: MainViewModel
+    viewModel: MainViewModel,
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -195,6 +196,12 @@ fun ProfileScreen(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(
+            onClick = {
+                viewModel.logOut()
+            }
+        ) { }
 
     }
 }

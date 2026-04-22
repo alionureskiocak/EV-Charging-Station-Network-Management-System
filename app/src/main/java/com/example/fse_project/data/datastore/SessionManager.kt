@@ -16,12 +16,18 @@ class SessionManager @Inject constructor(
 
     val currentUserId : Flow<Long?> = dataStore.data
         .map {
-            it[USER_ID] ?: 0
+            it[USER_ID]
         }
 
     suspend fun setUserId(id : Long){
         dataStore.edit {
             it[USER_ID] = id
+        }
+    }
+
+    suspend fun logOut(){
+        dataStore.edit {
+            it.remove(USER_ID)
         }
     }
 }
