@@ -50,7 +50,6 @@ class MainActivity : ComponentActivity() {
             val backStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = backStackEntry?.destination?.route
 
-            // 🔥 EN KRİTİK KISIM (GLOBAL NAVIGATION)
             LaunchedEffect(authState) {
 
                 println("AUTH STATE: $authState")

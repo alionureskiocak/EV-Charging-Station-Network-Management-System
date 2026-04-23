@@ -18,11 +18,14 @@ import com.example.fse_project.domain.repository.StationRepository
 import com.example.fse_project.domain.repository.UserRepository
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -47,7 +50,7 @@ class MainViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     init {
-        getUserProfile()
+        observeUserData()
         getUsers()
         observeStationsWithReservations()
         observeAllReservations()
@@ -113,6 +116,44 @@ class MainViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeUserData() {
+        viewModelScope.launch {
+
+            sessionManager.currentUserId
+                .filterNotNull()
+                .flatMapLatest { userId ->
+
+                    val userFlow = flow {
+                        emit(userRepo.getUserProfile(userId))
+                    }
+
+                    val reservationFlow =
+                        reservationRepo.getAllReservationsByUserId(userId)
+
+                    val vehicleFlow =
+                        userRepo.getVehiclesByUserId(userId)
+
+                    combine(
+                        userFlow,
+                        reservationFlow,
+                        vehicleFlow
+                    ) { user, reservations, vehicles ->
+
+                        UiState(
+                            currentUser = user,
+                            usersReservations = reservations,
+                            usersVehicles = vehicles,
+                            currentReservation = reservations.lastOrNull()
+                        )
+                    }
+                }
+                .collect { newState ->
+                    _state.value = newState
+                }
         }
     }
 
@@ -199,6 +240,7 @@ class MainViewModel @Inject constructor(
             reservationRepo.deleteReservation(resId)
             clearRoute()
             changeCancelDialogStatus()
+            _state.update { it.copy(currentReservation = null) }
         }
 
     }

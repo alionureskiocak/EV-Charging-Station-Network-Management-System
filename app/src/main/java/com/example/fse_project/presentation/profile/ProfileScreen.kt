@@ -201,7 +201,9 @@ fun ProfileScreen(
             onClick = {
                 viewModel.logOut()
             }
-        ) { }
+        ) {
+            Text("Çıkış Yap")
+        }
 
     }
 }
