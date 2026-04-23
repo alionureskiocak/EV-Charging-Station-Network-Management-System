@@ -10,7 +10,7 @@ interface UserRepository {
 
     suspend fun createUser(user: User) : Long
     suspend fun deleteUser(userId : Long)
-    suspend fun getUserProfile(userId : Long) : User?
+    suspend fun getUserProfile(userId : Long) : Flow<User?>
     suspend fun getAllUsers() : Flow<List<User>>
     suspend fun login(email : String, password : String) : User?
 

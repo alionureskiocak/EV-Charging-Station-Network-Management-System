@@ -43,9 +43,9 @@ class UserRepositoryImpl @Inject constructor(
         dao.deleteUser(userId)
     }
 
-    override suspend fun getUserProfile(userId: Long): User? {
-        val user = dao.getUserById(userId)
-        return user?.toDomain()
+    override suspend fun getUserProfile(userId: Long): Flow<User?> {
+        return dao.getUserById(userId).map { it?.toDomain() }
+
     }
 
     override suspend fun getAllUsers(): Flow<List<User>>{

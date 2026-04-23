@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.LocationOn
@@ -24,12 +25,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.fse_project.data.datastore.SessionManager
@@ -44,10 +47,20 @@ fun ProfileScreen(
     val state by viewModel.state.collectAsState()
 
     val user = state.currentUser
+    val wallet = user?.wallet
     val reservations = state.usersReservations
     val currentReservation = state.currentReservation
     val showResCancelDialog = state.showResCancelDialog
 
+   var showWalletDialog by remember { mutableStateOf(false) }
+
+    if (showWalletDialog){
+        WalletDialog(
+            onClick = {viewModel.updateWallet(wallet!!.balance+it)},
+            onDismiss = {showWalletDialog = false
+            }
+        )
+    }
 
     if (showResCancelDialog) {
         AlertDialog(
@@ -199,5 +212,46 @@ fun ProfileScreen(
             Text("Çıkış Yap")
         }
 
+        wallet?.let {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text("Bakiye: ${wallet.balance}")
+                Button(
+                    onClick = {
+                        showWalletDialog = true
+                    }
+                ) {
+                    Text("Bakiye Yükle")
+                }
+            }
+        }
     }
+}
+
+@Composable
+fun WalletDialog(onClick : (Long) -> Unit,onDismiss : () -> Unit) {
+
+    var amount by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = {onDismiss()},
+        title = {Text("Bakiye Yükle")},
+        text = {
+
+            TextField(value = amount, onValueChange = {amount = it},keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number
+            ))
+        },
+        confirmButton = {
+            Button(onClick = {
+                onClick(amount.toLong())
+                onDismiss()
+            }) {
+                Text("Bakiye Yükle")
+            }
+        },
+        dismissButton = {
+            Button(onClick = {onDismiss()}) {
+                Text("Vazgeç")
+            }
+        }
+    )
 }

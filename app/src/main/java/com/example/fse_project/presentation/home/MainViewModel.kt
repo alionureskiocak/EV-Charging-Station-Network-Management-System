@@ -21,7 +21,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
@@ -127,15 +126,14 @@ class MainViewModel @Inject constructor(
                 .filterNotNull()
                 .flatMapLatest { userId ->
 
-                    val userFlow = flow {
-                        emit(userRepo.getUserProfile(userId))
-                    }
+                    val userFlow = userRepo.getUserProfile(userId)
 
                     val reservationFlow =
                         reservationRepo.getAllReservationsByUserId(userId)
 
                     val vehicleFlow =
                         userRepo.getVehiclesByUserId(userId)
+
 
                     combine(
                         userFlow,
@@ -187,21 +185,6 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             userRepo.getVehiclesByUserId(id).collect {
                 _state.update { state -> state.copy(usersVehicles = it) }
-            }
-        }
-    }
-
-    fun getUserProfile() {
-        viewModelScope.launch {
-            sessionManager.currentUserId.filterNotNull().collectLatest { userId ->
-                val user = userRepo.getUserProfile(userId)
-                if (user != null) {
-                    _state.update { it.copy(currentUser = user) }
-                    getUsersCars(user.id)
-                    getUsersReservations(user.id)
-                } else {
-                    println("Kullanıcı veritabanında bulunamadı!")
-                }
             }
         }
     }
@@ -457,6 +440,16 @@ class MainViewModel @Inject constructor(
                 routeSteps = emptyList(),
                 routeError = null
             )
+        }
+    }
+
+    fun updateWallet(balance : Double){
+        viewModelScope.launch {
+            _state.value.currentUser?.let {
+                val id = _state.value.currentUser!!.id
+                userRepo.updateWallet(id,balance)
+            }
+
         }
     }
 
