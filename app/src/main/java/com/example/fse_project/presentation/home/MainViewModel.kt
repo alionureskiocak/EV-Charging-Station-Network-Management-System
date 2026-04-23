@@ -152,7 +152,16 @@ class MainViewModel @Inject constructor(
                     }
                 }
                 .collect { newState ->
-                    _state.value = newState
+                    _state.update { old ->
+
+                        old.copy(
+                            currentUser = newState.currentUser,
+                            usersReservations = newState.usersReservations,
+                            usersVehicles = newState.usersVehicles,
+                            currentReservation = newState.currentReservation
+                        )
+
+                    }
                 }
         }
     }

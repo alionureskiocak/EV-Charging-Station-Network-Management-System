@@ -48,9 +48,6 @@ fun ProfileScreen(
     val currentReservation = state.currentReservation
     val showResCancelDialog = state.showResCancelDialog
 
-    LaunchedEffect(currentReservation) {
-        println("res: $currentReservation")
-    }
 
     if (showResCancelDialog) {
         AlertDialog(
@@ -84,9 +81,6 @@ fun ProfileScreen(
         )
     }
 
-    LaunchedEffect(user) {
-        println("$user")
-    }
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,

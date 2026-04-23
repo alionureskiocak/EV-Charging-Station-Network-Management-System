@@ -128,10 +128,11 @@ fun MainScreen(
 
     val showResCancelDialog = state.showResCancelDialog
 
-    LaunchedEffect(currentReservation) {
-        println("res: $currentReservation")
-    }
 
+
+    LaunchedEffect(vehicle) {
+        println("şimdiki araba: $vehicle")
+    }
     var hasLocationPermission by remember { mutableStateOf(false) }
     CheckPermission {
         hasLocationPermission = it
@@ -270,9 +271,7 @@ fun MainScreen(
     //    }
     //}
 
-    LaunchedEffect(currentReservation?.id) {
-        println(currentReservation?.id)
-    }
+
 
     LaunchedEffect(Unit)  {
         if (hasLocationPermission){
@@ -342,9 +341,7 @@ fun MainScreen(
         )
     }
 
-    LaunchedEffect(routeDistance,routeDuration) {
-        println("distance: $routeDistance duration: $routeDuration")
-    }
+
 
 
     Scaffold(
@@ -458,9 +455,9 @@ fun MainScreen(
                 properties = properties,
                 onMapClick = { latLng ->
                     currentUser?.let {
-                        println(currentUser.name)
                     }
                 }
+                //TODO rezervasyon iptalinde araç da gidiyor? rezervasyon yapınca da!
             ) {
                 if (pathPoints.isNotEmpty()) {
                     Polyline(
@@ -553,7 +550,7 @@ fun MainScreen(
                                             viewModel.getReservationTimeSlots(chargerId = chargerId)
                                             showChargersForAnimation = false
                                         },
-                                        station = currentStation!!,
+                                        station = currentStation,
                                         vehicle = vehicle,
                                         usersVehicles = usersVehicles,
                                         onVehicleAdd = { showCarAddDialog = true },
@@ -589,7 +586,7 @@ fun MainScreen(
 @Composable
 fun ChargerChoiceScreen(
     chargers: List<ChargerItem>,
-    station: Station,
+    station: Station?,
     vehicle : Vehicle?,
     usersVehicles : List<Vehicle>,
     onChargerClick: (Long) -> Unit,
@@ -607,19 +604,21 @@ fun ChargerChoiceScreen(
                 .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = station.name,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = station.address,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
+            station?.let {
+                Text(
+                    text = station.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = station.address,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
 
         if (vehicle!=null){
