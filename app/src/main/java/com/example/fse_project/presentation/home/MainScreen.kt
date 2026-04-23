@@ -309,22 +309,6 @@ fun MainScreen(
         )
     }
 
-
-
-    /*LaunchedEffect(currentReservation, userLocation) {
-        if (currentReservation != null && userLocation!= null) {
-            if (currentStation!= null){
-                viewModel.fetchDirections(
-                    userLocation.latitude,
-                    userLocation.longitude,
-                    currentStation.latitude,
-                    currentStation.longitude
-                )
-            }
-
-        }
-    }*/
-
     LaunchedEffect(currentReservation, userLocation) {
         if (currentReservation != null && userLocation != null) {
             currentStation?.let {
@@ -338,7 +322,6 @@ fun MainScreen(
                     )
                     results[0]
                 }
-                // Hedefe 50 metreden fazlaysa güncelle
                 if (distanceMoved > 50f) {
                     viewModel.fetchDirections(
                         userLocation.latitude,
@@ -384,7 +367,7 @@ fun MainScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
 
-                        // 🔹 İstasyon adı
+
                         Text(
                             text = currentReservation.station.name,
                             style = MaterialTheme.typography.titleLarge,
@@ -393,7 +376,7 @@ fun MainScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // 🔹 Mesafe + Süre
+
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -439,7 +422,6 @@ fun MainScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // 🔹 Charger bilgisi
                         Text(
                             text = "Şarj: ${currentReservation.charger.chargerType}",
                             style = MaterialTheme.typography.bodyMedium
@@ -447,7 +429,6 @@ fun MainScreen(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // 🔹 Saat bilgisi
                         Text(
                             text = "${currentReservation.startTime.toLocalTime()} - ${currentReservation.endTime.toLocalTime()}",
                             style = MaterialTheme.typography.bodySmall,
@@ -572,7 +553,14 @@ fun MainScreen(
                                             viewModel.getReservationTimeSlots(chargerId = chargerId)
                                             showChargersForAnimation = false
                                         },
-                                        station = currentStation!!
+                                        station = currentStation!!,
+                                        vehicle = vehicle,
+                                        usersVehicles = usersVehicles,
+                                        onVehicleAdd = { showCarAddDialog = true },
+                                        onVehicleSelect = {
+                                            viewModel.setCurrentVehicle(it)
+                                            showCarDialog = false
+                                        },
                                     )
                                 } else {
                                     ChargerTimeSlotsScreen(
@@ -583,7 +571,8 @@ fun MainScreen(
                                         onReservationConfirm = { str, end ->
                                             viewModel.createReservation()
                                             //viewModel.fetchDirections()
-                                        }
+                                        },
+
                                     )
                                 }
                             }
@@ -601,7 +590,11 @@ fun MainScreen(
 fun ChargerChoiceScreen(
     chargers: List<ChargerItem>,
     station: Station,
-    onChargerClick: (Long) -> Unit
+    vehicle : Vehicle?,
+    usersVehicles : List<Vehicle>,
+    onChargerClick: (Long) -> Unit,
+    onVehicleAdd: () -> Unit,
+    onVehicleSelect: (Vehicle) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -629,70 +622,71 @@ fun ChargerChoiceScreen(
             )
         }
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 16.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(chargers) { item ->
-                val alpha = if (item.clickable) 1f else 0.4f
-                ElevatedCard(
-                    onClick = { onChargerClick(item.charger.id) },
-                    enabled = item.clickable,
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .alpha(alpha)
-                ) {
-                    Column(
+        if (vehicle!=null){
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(chargers) { item ->
+                    val alpha = if (item.clickable) 1f else 0.4f
+                    ElevatedCard(
+                        onClick = { onChargerClick(item.charger.id) },
+                        enabled = item.clickable,
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .alpha(alpha)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
 
-                            Box(
-                                modifier = Modifier
-                                    .size(12.dp)
-                                    .clip(CircleShape)
-                                    .background(item.statusColor)
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(item.statusColor)
+                                )
+                            }
+
+                            Image(
+                                painter = painterResource(R.drawable.charger),
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp)
                             )
-                        }
 
-                        Image(
-                            painter = painterResource(R.drawable.charger),
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp)
-                        )
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = item.charger.chargerName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
 
-                        Text(
-                            text = item.charger.chargerName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                        Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = item.charger.connectorType.name,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
 
-                        Text(
-                            text = item.charger.connectorType.name,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        Text(
-                            text = item.charger.powerOutput.name.replace("KW_", "") + " kW",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            Text(
+                                text = item.charger.powerOutput.name.replace("KW_", "") + " kW",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -702,10 +696,48 @@ fun ChargerChoiceScreen(
                                 fontWeight = FontWeight.Bold
                             )
 
+                        }
                     }
                 }
             }
+        }else{
+            Text(
+                text = "Rezervasyon için araba seçmeniz gerekmektedir. Arabalarınızdan birini seçebilir veya yeni araba oluşturabilirsiniz.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (usersVehicles.isNotEmpty()) {
+                    usersVehicles.forEach { vehicle ->
+                        OutlinedButton(
+                            onClick = { onVehicleSelect(vehicle) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(16.dp)
+                        ) {
+                            Text(
+                                text = "${vehicle.brand} ${vehicle.model}",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
+                }
+
+                FilledTonalButton(
+                    onClick = onVehicleAdd,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    Text("Yeni Araba Ekle")
+                }
+            }
         }
+
     }
 }
 
@@ -715,7 +747,8 @@ fun ChargerTimeSlotsScreen(
     selectedStartIndex: Int?,
     selectedEndIndex: Int?,
     onTimeSlotSelected: (Int) -> Unit,
-    onReservationConfirm: (Int, Int) -> Unit
+    onReservationConfirm: (Int, Int) -> Unit,
+
 ) {
     Column(
         modifier = Modifier
