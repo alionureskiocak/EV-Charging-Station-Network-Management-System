@@ -129,6 +129,7 @@ fun MainScreen(
     val charger = state.currentCharger
    LaunchedEffect(charger) { println("charger:$charger")}
     LaunchedEffect(station) { println("station:$station")}
+    LaunchedEffect(currentReservation) {println("res: $currentReservation") }
 
     val routePolyline = state.routePolyline
     val routeDistance = state.routeDistance
@@ -395,210 +396,179 @@ fun MainScreen(
                 .padding(paddingValues)
         ) {
             if (currentReservation!=null) {
+                val isCharging = timer.value > 0
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        // Şarj oluyorsa daha dikkat çekici bir arka plan rengi kullan
+                        containerColor = if (isCharging) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    if (timer.value == 0) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
+                    Column(
+                        modifier = Modifier.padding(20.dp)
+                    ) {
+                        // 🔹 ÜST KISIM: İstasyon Adı ve Statü
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = currentReservation.station.name,
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = if (isCharging) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
                             )
 
-                            Spacer(modifier = Modifier.height(8.dp))
-
-
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-
-                                Row(
+                            if (isCharging) {
+                                // Şarj oluyor animasyonlu veya renkli statü göstergesi
+                                Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFF4CAF50).copy(alpha = 0.2f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
-                                    Icon(
-                                        Icons.Default.LocationOn,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        routeDistance ?: "Konum aç",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Default.AccessTime,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        routeDuration ?: "Konum aç",
-                                        style = MaterialTheme.typography.bodySmall
+                                        text = "Şarj Oluyor",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2E7D32)
                                     )
                                 }
                             }
+                        }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
+                        // 🔹 BİLGİ ÇİPLERİ (Duruma göre değişen bilgiler)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            if (!isCharging) {
+                                // Bekleme Durumu Çipleri (Konum ve Süre)
+                                InfoChip(
+                                    icon = Icons.Default.LocationOn,
+                                    text = routeDistance ?: "Konum aç"
+                                )
+                                InfoChip(
+                                    icon = Icons.Default.AccessTime,
+                                    text = routeDuration ?: "Konum aç"
+                                )
+                            } else {
+                                // Şarj Durumu Çipleri (Araç ve Soket Tipi)
+                                vehicle?.let {
+                                    InfoChip(
+                                        icon = Icons.Default.ElectricCar,
+                                        text = "${it.brand} ${it.model}" // Tekrarlanan brand düzeltildi
+                                    )
+                                    InfoChip(
+                                        icon = Icons.Default.ChargingStation,
+                                        text = "${it.connectorType}"
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // 🔹 DETAYLAR VE DASHBOARD
+                        if (!isCharging) {
+                            // Bekleme Durumu Detayları
                             Text(
                                 text = "Şarj: ${currentReservation.charger.chargerType}",
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
                             )
-
                             Spacer(modifier = Modifier.height(4.dp))
-
                             Text(
                                 text = "${currentReservation.startTime.toLocalTime()} - ${currentReservation.endTime.toLocalTime()}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-
-                            Button(
-                                onClick = {
-                                    viewModel.changeCancelDialogStatus()
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Rezervasyonu İptal Et")
-                            }
-                        }
-                    }
-                        else{
-                            //ŞARJ EKRANI
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = currentReservation.station.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-
+                        } else {
+                            // Şarj Durumu Gösterge Paneli (Dashboard)
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Default.ElectricCar,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
+                                // Süre Bilgisi
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "Geçen Süre",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    vehicle?.let {
-                                        Text(
-                                            text = vehicle.brand,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                        Text(
-                                            text = vehicle.brand,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-
+                                    Text(
+                                        text = "${timer.value / 60}dk ${timer.value % 60}sn",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 }
 
-                                vehicle?.let {
-                                    Row(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            Icons.Default.ChargingStation,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            "${vehicle.connectorType}",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                }
+                                // Ayraç
+                                Box(
+                                    modifier = Modifier
+                                        .height(40.dp)
+                                        .width(1.dp)
+                                        .background(MaterialTheme.colorScheme.outlineVariant)
+                                )
 
+                                // Tutar Bilgisi
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "Toplam Tutar",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        // Tutarı küsuratlı göstermek istersen String.format kullanabilirsin
+                                        text = "₺${timer.value / 60 * currentReservation.pricePerKwh}",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
-
-                            Row {
-                                Text(
-                                    text = "Şarj: ${currentReservation.charger.chargerType}",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = "Geçen süre: ${timer.value/60}dk ${timer.value%60}sn",
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Row {
-                                Text(
-                                    text = "${currentReservation.startTime.toLocalTime()} - ${currentReservation.endTime.toLocalTime()}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = "Toplam tutar: ${timer.value/60*currentReservation.pricePerKwh}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-
-                            Button(
-                                onClick = {
-                                    viewModel.completeReservation()
-                                    viewModel.changeCancelDialogStatus()
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Şarj İşlemini Durdur")
-                            }
-                        }
+                            Text(
+                                text = "Şarj Hızı: ${currentReservation.charger.chargerType}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            )
                         }
 
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // 🔹 BUTON ALANI
+                        Button(
+                            onClick = { viewModel.changeCancelDialogStatus() },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
+                            contentPadding = PaddingValues(vertical = 14.dp)
+                        ) {
+                            Text(
+                                text = if (isCharging) "Şarj İşlemini Durdur" else "Rezervasyonu İptal Et",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                        }
+                    }
                 }
             }
             GoogleMap(

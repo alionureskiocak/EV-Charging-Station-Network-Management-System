@@ -152,7 +152,7 @@ class MainViewModel @Inject constructor(
                             currentUser = user,
                             usersReservations = reservations,
                             usersVehicles = vehicles,
-                            currentReservation = reservations.lastOrNull(),
+                            currentReservation = reservations.firstOrNull { it.status == ReservationStatus.ACTIVE },
                             currentCharger = reservations.lastOrNull()?.charger,
                             currentStation =  reservations.lastOrNull()?.station,
                             currentVehicle =  reservations.lastOrNull()?.vehicle
@@ -165,16 +165,19 @@ class MainViewModel @Inject constructor(
                         if (newState.currentReservation != null) {
                             val res = newState.currentReservation
                             val today = LocalDateTime.now()
-                            diff = java.time.Duration.between(res.startTime, today).toSeconds()
+                            diff = Duration.between(res.startTime, today).toSeconds()
                                 .toLong()
                         }
                         //if (newState.usersReservations.isNotEmpty() && findDiff(newState.currentReservation!!.startTime) >= 0) startBilling()
-                       val updatedState =  old.copy(
-                            currentUser = newState.currentUser,
+                       val updatedState = old.copy(
+                           currentUser = newState.currentUser,
                             usersReservations = newState.usersReservations,
                             usersVehicles = newState.usersVehicles,
                             currentReservation = newState.currentReservation,
-                        )
+                            currentStation = newState.currentStation ?: old.currentStation,
+                            currentCharger = newState.currentCharger ?: old.currentCharger,
+                            currentVehicle = newState.currentVehicle ?: old.currentVehicle,
+                            )
 
                         val res = newState.currentReservation
                         val now = LocalDateTime.now()
@@ -209,6 +212,7 @@ class MainViewModel @Inject constructor(
                 //currentCharger = charger.co
             )
         }
+        println("bitti")
     }
 
     fun getUsers() {
@@ -276,7 +280,8 @@ class MainViewModel @Inject constructor(
 
     fun deleteReservation(resId: Long) {
         viewModelScope.launch {
-            reservationRepo.deleteReservation(resId)
+            //reservationRepo.deleteReservation(resId)
+            reservationRepo.updateReservationStatus(resId, ReservationStatus.CANCELLED)
             clearRoute()
             changeCancelDialogStatus()
             stopBilling()
@@ -408,12 +413,14 @@ class MainViewModel @Inject constructor(
                 //TODO AYNI SAAT İÇİNDE GEÇ REZERVASYON YAPILIRSA SAAT BAŞINDAN İTİBAREN PARAYI ÇEKİYOR
                 val diff = Duration.between(startTime, now).toSeconds()
                 _timerFlow.value = diff.toInt()
+                _state.update { it.copy(isChargingNow = true) }
             }
         }
     }
 
     fun stopBilling() {
         job?.cancel()
+        _state.update { it.copy(isChargingNow = false) }
         _timerFlow.value = 0
     }
 
@@ -586,6 +593,8 @@ data class UiState(
     val isLoadingRoute: Boolean = false,
     val routeError: String? = null,
     val showResCancelDialog: Boolean = false,
+
+    val isChargingNow : Boolean = false,
 
     val userLocation: LatLng? = null
 )
