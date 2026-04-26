@@ -1,5 +1,7 @@
 package com.example.fse_project.presentation.home
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,25 +21,28 @@ import com.example.fse_project.domain.repository.UserRepository
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
 import javax.inject.Inject
 
+@RequiresApi(Build.VERSION_CODES.S)
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val userRepo: UserRepository,
     private val stationRepo: StationRepository,
     private val reservationRepo: ReservationRepository,
     private val sessionManager: SessionManager,
-    private val directionsRepo : DirectionsRepository,
+    private val directionsRepo: DirectionsRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -53,6 +58,7 @@ class MainViewModel @Inject constructor(
         getUsers()
         observeStationsWithReservations()
         observeAllReservations()
+        startBilling()
     }
 
     private fun observeAllReservations() {
@@ -118,6 +124,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeUserData() {
         viewModelScope.launch {
@@ -145,22 +152,62 @@ class MainViewModel @Inject constructor(
                             currentUser = user,
                             usersReservations = reservations,
                             usersVehicles = vehicles,
-                            currentReservation = reservations.lastOrNull()
+                            currentReservation = reservations.lastOrNull(),
+                            currentCharger = reservations.lastOrNull()?.charger,
+                            currentStation =  reservations.lastOrNull()?.station,
+                            currentVehicle =  reservations.lastOrNull()?.vehicle
                         )
                     }
                 }
                 .collect { newState ->
                     _state.update { old ->
-
-                        old.copy(
+                        var diff = 0L
+                        if (newState.currentReservation != null) {
+                            val res = newState.currentReservation
+                            val today = LocalDateTime.now()
+                            diff = java.time.Duration.between(res.startTime, today).toSeconds()
+                                .toLong()
+                        }
+                        //if (newState.usersReservations.isNotEmpty() && findDiff(newState.currentReservation!!.startTime) >= 0) startBilling()
+                       val updatedState =  old.copy(
                             currentUser = newState.currentUser,
                             usersReservations = newState.usersReservations,
                             usersVehicles = newState.usersVehicles,
-                            currentReservation = newState.currentReservation
+                            currentReservation = newState.currentReservation,
                         )
 
+                        val res = newState.currentReservation
+                        val now = LocalDateTime.now()
+                        if (res != null &&
+                            res.status == ReservationStatus.ACTIVE &&
+                            now.isAfter(res.startTime) &&
+                            now.isBefore(res.endTime)
+                        ) {
+                            startBilling()
+                        }
+
+
+                        updatedState
                     }
                 }
+        }
+    }
+
+    fun completeReservation(){
+        val reservation = _state.value.currentReservation!!
+        val user = _state.value.currentUser!!
+        //val station = _state.value.currentStation!!
+        val charger = _state.value.currentCharger!!
+        viewModelScope.launch {
+            reservation.status = ReservationStatus.COMPLETED
+            val newAmount = user.wallet.balance - _timerFlow.value/60
+            userRepo.updateWallet(user.id,newAmount)
+            reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.COMPLETED)
+            stationRepo.updateChargerStatus(charger.id, ChargerStatus.AVAILABLE)
+            _state.value = _state.value.copy(
+                currentReservation = null,
+                //currentCharger = charger.co
+            )
         }
     }
 
@@ -227,11 +274,12 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun deleteReservation(resId : Long){
+    fun deleteReservation(resId: Long) {
         viewModelScope.launch {
             reservationRepo.deleteReservation(resId)
             clearRoute()
             changeCancelDialogStatus()
+            stopBilling()
             _state.update { it.copy(currentReservation = null) }
         }
 
@@ -251,7 +299,12 @@ class MainViewModel @Inject constructor(
 
         // Yeni seçim başlatma
         if (currentStart == null || (currentStart != currentEnd) || timeSlotIndex < currentStart) {
-            _state.update { it.copy(selectedStartIndex = timeSlotIndex, selectedEndIndex = timeSlotIndex) }
+            _state.update {
+                it.copy(
+                    selectedStartIndex = timeSlotIndex,
+                    selectedEndIndex = timeSlotIndex
+                )
+            }
             return
         }
 
@@ -270,11 +323,17 @@ class MainViewModel @Inject constructor(
             if (isRangeClear && duration <= 4) {
                 _state.update { it.copy(selectedEndIndex = timeSlotIndex) }
             } else {
-                _state.update { it.copy(selectedStartIndex = timeSlotIndex, selectedEndIndex = timeSlotIndex) }
+                _state.update {
+                    it.copy(
+                        selectedStartIndex = timeSlotIndex,
+                        selectedEndIndex = timeSlotIndex
+                    )
+                }
             }
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     fun createReservation() {
         val startIdx = _state.value.selectedStartIndex ?: return
         val endIdx = _state.value.selectedEndIndex ?: return
@@ -298,11 +357,11 @@ class MainViewModel @Inject constructor(
                     pricePerKwh = 4.0,
                     status = ReservationStatus.ACTIVE
                 )
-               val id = reservationRepo.createReservation(reservation)
+                val id = reservationRepo.createReservation(reservation)
                 clearSelectedTimes()
 
                 _state.value.currentUser?.let { getUsersReservations(it.id) }
-                 val station = _state.value.currentStation!!
+                val station = _state.value.currentStation!!
 
                 val userLocation = _state.value.userLocation
                 userLocation?.let {
@@ -314,8 +373,48 @@ class MainViewModel @Inject constructor(
                     )
                 }
                 _state.update { it.copy(currentReservation = reservation.copy(id = id)) }
+
             }
         }
+
+
+    }
+
+    private var job: Job? = null
+
+    private val _timerFlow = MutableStateFlow(0)
+    val timerFlow = _timerFlow.asStateFlow()
+
+    fun startBilling() {
+
+        if (job?.isActive == true) return
+        job = viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                val res = _state.value.currentReservation ?: continue
+                val startTime = res.startTime
+                val now = LocalDateTime.now()
+
+
+                if (now.isBefore(startTime)) {
+                    _timerFlow.value = 0
+                    continue
+                }
+
+                if (now.isAfter(res.endTime)) {
+                    stopBilling()
+                    continue
+                }
+                //TODO AYNI SAAT İÇİNDE GEÇ REZERVASYON YAPILIRSA SAAT BAŞINDAN İTİBAREN PARAYI ÇEKİYOR
+                val diff = Duration.between(startTime, now).toSeconds()
+                _timerFlow.value = diff.toInt()
+            }
+        }
+    }
+
+    fun stopBilling() {
+        job?.cancel()
+        _timerFlow.value = 0
     }
 
     fun getReservationTimeSlots(chargerId: Long) {
@@ -346,7 +445,11 @@ class MainViewModel @Inject constructor(
                     index = globalIndex++,
                     hour = hour,
                     date = today,
-                    timeLabel = String.format("%02d:00 - %02d:00", hour, if (hour == 23) 0 else hour + 1),
+                    timeLabel = String.format(
+                        "%02d:00 - %02d:00",
+                        hour,
+                        if (hour == 23) 0 else hour + 1
+                    ),
                     isAvailable = !isReserved
                 )
             )
@@ -376,7 +479,7 @@ class MainViewModel @Inject constructor(
         _state.update { it.copy(timeSlots = slots) }
     }
 
-    fun logOut(){
+    fun logOut() {
         viewModelScope.launch {
             sessionManager.logOut()
         }
@@ -423,10 +526,10 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun setUserLocation(lat : Double, lng : Double){
+    fun setUserLocation(lat: Double, lng: Double) {
         _state.update {
             it.copy(
-                userLocation = LatLng(lat,lng)
+                userLocation = LatLng(lat, lng)
             )
         }
     }
@@ -443,17 +546,17 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun updateWallet(balance : Double){
+    fun updateWallet(balance: Double) {
         viewModelScope.launch {
             _state.value.currentUser?.let {
                 val id = _state.value.currentUser!!.id
-                userRepo.updateWallet(id,balance)
+                userRepo.updateWallet(id, balance)
             }
 
         }
     }
 
-    fun changeCancelDialogStatus(){
+    fun changeCancelDialogStatus() {
         _state.update { it.copy(showResCancelDialog = !_state.value.showResCancelDialog) }
     }
 }
@@ -482,7 +585,7 @@ data class UiState(
     val routeSteps: List<Step> = emptyList(),
     val isLoadingRoute: Boolean = false,
     val routeError: String? = null,
-    val showResCancelDialog : Boolean = false,
+    val showResCancelDialog: Boolean = false,
 
-    val userLocation : LatLng? = null
+    val userLocation: LatLng? = null
 )

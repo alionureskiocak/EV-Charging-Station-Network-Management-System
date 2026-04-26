@@ -25,8 +25,10 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import android.Manifest
 import android.location.Location
+import android.os.Build
 import androidx.compose.ui.graphics.Color
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -57,6 +59,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.ChargingStation
+import androidx.compose.material.icons.filled.ElectricCar
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -103,6 +107,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 
 
+@RequiresApi(Build.VERSION_CODES.S)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -121,6 +126,10 @@ fun MainScreen(
     val currentReservation = state.currentReservation
     val userLocation = state.userLocation
 
+    val charger = state.currentCharger
+   LaunchedEffect(charger) { println("charger:$charger")}
+    LaunchedEffect(station) { println("station:$station")}
+
     val routePolyline = state.routePolyline
     val routeDistance = state.routeDistance
     val routeDuration = state.routeDuration
@@ -128,46 +137,79 @@ fun MainScreen(
 
     val showResCancelDialog = state.showResCancelDialog
 
+    val timer = viewModel.timerFlow.collectAsState()
 
 
-    LaunchedEffect(vehicle) {
-        println("şimdiki araba: $vehicle")
-    }
     var hasLocationPermission by remember { mutableStateOf(false) }
     CheckPermission {
         hasLocationPermission = it
     }
 
+
+
     if (showResCancelDialog){
-        AlertDialog(
-            onDismissRequest = {viewModel.changeCancelDialogStatus()},
-            title = {
-                Text("Rezervasyon İptali")
-            },
-            text = {
-                Text("Rezervasyonunuzu iptal etmek istediğinize emin misiniz?")
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteReservation(currentReservation!!.id)
-
+        if (timer.value == 0){
+            AlertDialog(
+                onDismissRequest = {viewModel.changeCancelDialogStatus()},
+                title = {
+                    Text("Rezervasyon İptali")
+                },
+                text = {
+                    Text("Rezervasyonunuzu iptal etmek istediğinize emin misiniz?")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteReservation(currentReservation!!.id)
+                            viewModel.changeCancelDialogStatus()
+                        }
+                    ) {
+                        Text("İptal Et")
                     }
-                ) {
-                    Text("İptal Et")
-                }
-            },
-            dismissButton = {
-                Button(
-                    onClick = {
-                        viewModel.changeCancelDialogStatus()
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            viewModel.changeCancelDialogStatus()
+                        }
+                    ) {
+                        Text("Vazgeç")
                     }
-                ) {
-                    Text("Vazgeç")
                 }
-            }
 
-        )
+            )
+        }
+        else{
+            AlertDialog(
+                onDismissRequest = {viewModel.changeCancelDialogStatus()},
+                title = {
+                    Text("Şarjı Bitirme İşlemi")
+                },
+                text = {
+                    Text("Şarj işlemini bitirmek istediğinize emin misiniz?")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.completeReservation()
+                            viewModel.changeCancelDialogStatus()
+                        }
+                    ) {
+                        Text("Durdur")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            viewModel.changeCancelDialogStatus()
+                        }
+                    ) {
+                        Text("Vazgeç")
+                    }
+                }
+
+            )
+        }
     }
 
     val chargerItems = remember(station, vehicle,currentReservation,reservations) {
@@ -360,91 +402,203 @@ fun MainScreen(
                     shape = RoundedCornerShape(20.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-
-
-                        Text(
-                            text = currentReservation.station.name,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    if (timer.value == 0) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
                         ) {
+                            Text(
+                                text = currentReservation.station.name,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
 
                             Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Icon(
-                                    Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    routeDistance ?: "Konum aç",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        routeDistance ?: "Konum aç",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.AccessTime,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        routeDuration ?: "Konum aç",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                             }
 
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text(
+                                text = "Şarj: ${currentReservation.charger.chargerType}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = "${currentReservation.startTime.toLocalTime()} - ${currentReservation.endTime.toLocalTime()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+
+                            Button(
+                                onClick = {
+                                    viewModel.changeCancelDialogStatus()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
-                                Icon(
-                                    Icons.Default.AccessTime,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    routeDuration ?: "Konum aç",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                                Text("Rezervasyonu İptal Et")
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = "Şarj: ${currentReservation.charger.chargerType}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = "${currentReservation.startTime.toLocalTime()} - ${currentReservation.endTime.toLocalTime()}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-
-                        Button(
-                            onClick = {
-                                viewModel.changeCancelDialogStatus()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Rezervasyonu İptal Et")
                         }
                     }
+                        else{
+                            //ŞARJ EKRANI
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = currentReservation.station.name,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.ElectricCar,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    vehicle?.let {
+                                        Text(
+                                            text = vehicle.brand,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        Text(
+                                            text = vehicle.brand,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+
+                                }
+
+                                vehicle?.let {
+                                    Row(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.ChargingStation,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            "${vehicle.connectorType}",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                }
+
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Row {
+                                Text(
+                                    text = "Şarj: ${currentReservation.charger.chargerType}",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    text = "Geçen süre: ${timer.value/60}dk ${timer.value%60}sn",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row {
+                                Text(
+                                    text = "${currentReservation.startTime.toLocalTime()} - ${currentReservation.endTime.toLocalTime()}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    text = "Toplam tutar: ${timer.value/60*currentReservation.pricePerKwh}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+
+                            Button(
+                                onClick = {
+                                    viewModel.completeReservation()
+                                    viewModel.changeCancelDialogStatus()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Şarj İşlemini Durdur")
+                            }
+                        }
+                        }
+
                 }
             }
             GoogleMap(
