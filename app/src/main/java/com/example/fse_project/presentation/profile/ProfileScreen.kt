@@ -82,7 +82,7 @@ fun ProfileScreen(
 
         // 🔹 Başlık
         Text(
-            text = "Profilim}",
+            text = "Profilim",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.fillMaxWidth(),

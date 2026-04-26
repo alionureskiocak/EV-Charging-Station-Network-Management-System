@@ -62,6 +62,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ChargingStation
 import androidx.compose.material.icons.filled.ElectricCar
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -86,6 +87,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -98,6 +100,7 @@ import com.example.fse_project.data.local.database.entities.ConnectorType
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.R
+import com.example.fse_project.domain.model.Reservation
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.LatLngBounds
@@ -106,13 +109,12 @@ import com.google.maps.android.compose.Polyline
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 
-
 @RequiresApi(Build.VERSION_CODES.S)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = hiltViewModel(),
-    navController : NavHostController
+    navController: NavHostController
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -120,151 +122,32 @@ fun MainScreen(
     val reservations = state.usersReservations
     val usersVehicles = state.usersVehicles
     val stations = state.allStations
-    val timeSlots = if (state.restrictedTimeSlots == emptyList<TimeSlot>()) state.timeSlots else state.restrictedTimeSlots
+    val timeSlots = if (state.restrictedTimeSlots.isEmpty()) state.timeSlots else state.restrictedTimeSlots
     val station = state.currentStation
     val vehicle = state.currentVehicle
     val currentReservation = state.currentReservation
     val userLocation = state.userLocation
 
     val charger = state.currentCharger
-   LaunchedEffect(charger) { println("charger:$charger")}
-    LaunchedEffect(station) { println("station:$station")}
-    LaunchedEffect(currentReservation) {println("res: $currentReservation") }
-
     val routePolyline = state.routePolyline
     val routeDistance = state.routeDistance
     val routeDuration = state.routeDuration
     val isLoadingRoute = state.isLoadingRoute
-
     val showResCancelDialog = state.showResCancelDialog
 
     val timer = viewModel.timerFlow.collectAsState()
 
-
     var hasLocationPermission by remember { mutableStateOf(false) }
-    CheckPermission {
-        hasLocationPermission = it
-    }
+    CheckPermission { hasLocationPermission = it }
 
+    val context = LocalContext.current
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-
-    if (showResCancelDialog){
-        if (timer.value == 0){
-            AlertDialog(
-                onDismissRequest = {viewModel.changeCancelDialogStatus()},
-                title = {
-                    Text("Rezervasyon İptali")
-                },
-                text = {
-                    Text("Rezervasyonunuzu iptal etmek istediğinize emin misiniz?")
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            viewModel.deleteReservation(currentReservation!!.id)
-                            viewModel.changeCancelDialogStatus()
-                        }
-                    ) {
-                        Text("İptal Et")
-                    }
-                },
-                dismissButton = {
-                    Button(
-                        onClick = {
-                            viewModel.changeCancelDialogStatus()
-                        }
-                    ) {
-                        Text("Vazgeç")
-                    }
-                }
-
-            )
-        }
-        else{
-            AlertDialog(
-                onDismissRequest = {viewModel.changeCancelDialogStatus()},
-                title = {
-                    Text("Şarjı Bitirme İşlemi")
-                },
-                text = {
-                    Text("Şarj işlemini bitirmek istediğinize emin misiniz?")
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            viewModel.completeReservation()
-                            viewModel.changeCancelDialogStatus()
-                        }
-                    ) {
-                        Text("Durdur")
-                    }
-                },
-                dismissButton = {
-                    Button(
-                        onClick = {
-                            viewModel.changeCancelDialogStatus()
-                        }
-                    ) {
-                        Text("Vazgeç")
-                    }
-                }
-
-            )
-        }
-    }
-
-    val chargerItems = remember(station, vehicle,currentReservation,reservations) {
-        station?.chargers?.map { charger ->
-            val clickable = vehicle != null &&
-                    charger.connectorType == vehicle.connectorType &&
-                    charger.chargerStatus != ChargerStatus.OFFLINE
-                    && currentReservation == null
-
-            val text = when {
-                charger.chargerStatus == ChargerStatus.OFFLINE -> "Çevrimdışı"
-                vehicle == null -> "Araç seç"
-                charger.connectorType != vehicle.connectorType -> "Uyumsuz Soket"
-                charger.chargerStatus == ChargerStatus.FULL -> "Dolu"
-                charger.chargerStatus == ChargerStatus.OCCUPIED -> "İleri tarih için rezervasyon var"
-                else -> "Uygun"
-            }
-
-            val color = when (charger.chargerStatus) {
-                ChargerStatus.AVAILABLE -> Color(0xFF76FF03)
-                ChargerStatus.OCCUPIED -> Color(0xFFFF9100)
-                ChargerStatus.FULL -> Color.Yellow
-                else -> Color.Red
-            }
-
-            ChargerItem(
-                charger = charger,
-                clickable = clickable,
-                clickableText = text,
-                statusColor = color
-            )
-        } ?: emptyList()
-    }
-
-    var currentStation = state.currentStation
+    var isSheetOpen by remember { mutableStateOf(false) }
     var showCarDialog by remember { mutableStateOf(false) }
     var showCarAddDialog by remember { mutableStateOf(false) }
-    var isSheetOpen by remember { mutableStateOf(false) }
-
-
-    if (isLoadingRoute) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-    }
-
 
     val izmir = LatLng(38.4237, 27.1428)
-
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(izmir, 10f)
     }
@@ -273,6 +156,7 @@ fun MainScreen(
         routePolyline?.let { PolyUtil.decode(it) } ?: emptyList()
     }
 
+    // Harita animasyonu
     LaunchedEffect(pathPoints) {
         if (pathPoints.isNotEmpty()) {
             val builder = LatLngBounds.Builder()
@@ -285,39 +169,16 @@ fun MainScreen(
         }
     }
 
-
-
-    val context = LocalContext.current
-
+    // Kullanıcı ilk girdiğinde araç seçimi
     LaunchedEffect(currentUser, usersVehicles) {
         if (currentUser != null && vehicle == null) {
             showCarDialog = true
         }
     }
 
-    val fusedLocationClient = remember {
-        LocationServices.getFusedLocationProviderClient(context)
-    }
- //  fusedLocationClient.lastLocation
- //      .addOnSuccessListener { location ->
- //          if (location!=null && station!=null){
- //              val lat = location.latitude
- //              val long = location.longitude
- //              viewModel.setUserLocation(lat,long)
- //          }
- //      }
-    //LaunchedEffect(fusedLocationClient.lastLocation) {
-    //    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-    //        location?.let {
-    //            viewModel.setUserLocation(it.latitude, it.longitude)
-    //        }
-    //    }
-    //}
-
-
-
-    LaunchedEffect(Unit)  {
-        if (hasLocationPermission){
+    // Konum Güncelleme Döngüsü
+    LaunchedEffect(Unit) {
+        if (hasLocationPermission) {
             while (true) {
                 fusedLocationClient.lastLocation.await()?.let {
                     viewModel.setUserLocation(it.latitude, it.longitude)
@@ -325,9 +186,58 @@ fun MainScreen(
                 delay(5000)
             }
         }
-
     }
 
+    // Rota Hesaplama Tetikleyicisi
+    LaunchedEffect(currentReservation, userLocation) {
+        if (currentReservation != null && userLocation != null) {
+            station?.let {
+                val destination = LatLng(it.latitude, it.longitude)
+                val distanceMoved = FloatArray(1).apply {
+                    Location.distanceBetween(
+                        userLocation.latitude, userLocation.longitude,
+                        destination.latitude, destination.longitude,
+                        this
+                    )
+                }[0]
+                if (distanceMoved > 50f) {
+                    viewModel.fetchDirections(
+                        userLocation.latitude, userLocation.longitude,
+                        it.latitude, it.longitude
+                    )
+                }
+            }
+        }
+    }
+
+    val properties by remember(hasLocationPermission) {
+        mutableStateOf(MapProperties(isMyLocationEnabled = hasLocationPermission))
+    }
+
+    // İptal / Durdurma Dialogu
+    if (showResCancelDialog) {
+        AlertDialog(
+            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            onDismissRequest = { viewModel.changeCancelDialogStatus() },
+            title = { Text(if (timer.value == 0) "Rezervasyon İptali" else "Şarjı Bitirme İşlemi") },
+            text = { Text(if (timer.value == 0) "Rezervasyonunuzu iptal etmek istediğinize emin misiniz?" else "Şarj işlemini bitirmek istediğinize emin misiniz?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (timer.value == 0) viewModel.deleteReservation(currentReservation!!.id)
+                        else viewModel.completeReservation()
+                        viewModel.changeCancelDialogStatus()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text(if (timer.value == 0) "İptal Et" else "Durdur") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.changeCancelDialogStatus() }) { Text("Vazgeç") }
+            }
+        )
+    }
+
+    // Araç Dialogları
     if (showCarDialog) {
         CarDialog(
             usersVehicles = usersVehicles,
@@ -336,285 +246,53 @@ fun MainScreen(
             onVehicleSelect = {
                 viewModel.setCurrentVehicle(it)
                 showCarDialog = false
-            },
+            }
         )
     }
 
     if (showCarAddDialog) {
         CarAddDialog(
-            onDismiss = { showCarAddDialog = false },
             currentUserId = currentUser?.id,
+            onDismiss = { showCarAddDialog = false },
             onCarAdd = {
                 viewModel.addVehicle(it)
-                Toast.makeText(context, "", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Araç eklendi", Toast.LENGTH_SHORT).show()
             }
         )
     }
 
-    LaunchedEffect(currentReservation, userLocation) {
-        if (currentReservation != null && userLocation != null) {
-            currentStation?.let {
-                val destination = LatLng(it.latitude, it.longitude)
-                val distanceMoved = userLocation.let { loc ->
-                    val results = FloatArray(1)
-                    Location.distanceBetween(
-                        loc.latitude, loc.longitude,
-                        destination.latitude, destination.longitude,
-                        results
-                    )
-                    results[0]
-                }
-                if (distanceMoved > 50f) {
-                    viewModel.fetchDirections(
-                        userLocation.latitude,
-                        userLocation.longitude,
-                        it.latitude,
-                        it.longitude
-                    )
-                }
-            }
-        }
-    }
+    // ANA EKRAN ÇİZİMİ
+    Scaffold(modifier = Modifier.fillMaxSize()) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize()) {
 
-    val properties by remember(hasLocationPermission) {
-        mutableStateOf(
-            MapProperties(
-                isMyLocationEnabled = hasLocationPermission
-            )
-        )
-    }
-
-
-
-
-    Scaffold(
-
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            if (currentReservation!=null) {
-                val isCharging = timer.value > 0
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        // Şarj oluyorsa daha dikkat çekici bir arka plan rengi kullan
-                        containerColor = if (isCharging) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        // 🔹 ÜST KISIM: İstasyon Adı ve Statü
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = currentReservation.station.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isCharging) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                            )
-
-                            if (isCharging) {
-                                // Şarj oluyor animasyonlu veya renkli statü göstergesi
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFF4CAF50).copy(alpha = 0.2f))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = "Şarj Oluyor",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF2E7D32)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // 🔹 BİLGİ ÇİPLERİ (Duruma göre değişen bilgiler)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (!isCharging) {
-                                // Bekleme Durumu Çipleri (Konum ve Süre)
-                                InfoChip(
-                                    icon = Icons.Default.LocationOn,
-                                    text = routeDistance ?: "Konum aç"
-                                )
-                                InfoChip(
-                                    icon = Icons.Default.AccessTime,
-                                    text = routeDuration ?: "Konum aç"
-                                )
-                            } else {
-                                // Şarj Durumu Çipleri (Araç ve Soket Tipi)
-                                vehicle?.let {
-                                    InfoChip(
-                                        icon = Icons.Default.ElectricCar,
-                                        text = "${it.brand} ${it.model}" // Tekrarlanan brand düzeltildi
-                                    )
-                                    InfoChip(
-                                        icon = Icons.Default.ChargingStation,
-                                        text = "${it.connectorType}"
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // 🔹 DETAYLAR VE DASHBOARD
-                        if (!isCharging) {
-                            // Bekleme Durumu Detayları
-                            Text(
-                                text = "Şarj: ${currentReservation.charger.chargerType}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "${currentReservation.startTime.toLocalTime()} - ${currentReservation.endTime.toLocalTime()}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            // Şarj Durumu Gösterge Paneli (Dashboard)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Süre Bilgisi
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "Geçen Süre",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "${timer.value / 60}dk ${timer.value % 60}sn",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-
-                                // Ayraç
-                                Box(
-                                    modifier = Modifier
-                                        .height(40.dp)
-                                        .width(1.dp)
-                                        .background(MaterialTheme.colorScheme.outlineVariant)
-                                )
-
-                                // Tutar Bilgisi
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "Toplam Tutar",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        // Tutarı küsuratlı göstermek istersen String.format kullanabilirsin
-                                        text = "₺${timer.value / 60 * currentReservation.pricePerKwh}",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Şarj Hızı: ${currentReservation.charger.chargerType}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // 🔹 BUTON ALANI
-                        Button(
-                            onClick = { viewModel.changeCancelDialogStatus() },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            ),
-                            contentPadding = PaddingValues(vertical = 14.dp)
-                        ) {
-                            Text(
-                                text = if (isCharging) "Şarj İşlemini Durdur" else "Rezervasyonu İptal Et",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                        }
-                    }
-                }
-            }
+            // 1. KATMAN: HARİTA
             GoogleMap(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f),
+                modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 properties = properties,
-                onMapClick = { latLng ->
-                    currentUser?.let {
-                    }
-                }
-                //TODO rezervasyon iptalinde araç da gidiyor? rezervasyon yapınca da!
+                contentPadding = paddingValues,
+                onMapClick = { /* Boşluk tıklandığında */ }
             ) {
                 if (pathPoints.isNotEmpty()) {
                     Polyline(
                         points = pathPoints,
-                        color = Color(0xFF2196F3),
-                        width = 12f,
+                        color = MaterialTheme.colorScheme.primary,
+                        width = 14f,
                         geodesic = true
                     )
                 }
 
-
-
-
-                if (pathPoints.isNotEmpty()) {
-                    Polyline(
-                        points = pathPoints,
-                        color = Color(0xFF2196F3),
-                        width = 12f,
-                        geodesic = true
-                    )
-                }
-
-                stations.forEach { station ->
+                stations.forEach { st ->
                     val color = if (vehicle != null) {
-                        val compatibleChargers = station.chargers.filter { it.connectorType == vehicle.connectorType }
+                        val compatible = st.chargers.filter { it.connectorType == vehicle.connectorType }
                         when {
-                            compatibleChargers.isEmpty() || compatibleChargers.all { it.chargerStatus == ChargerStatus.OFFLINE } -> BitmapDescriptorFactory.HUE_RED
-                            compatibleChargers.any { it.chargerStatus == ChargerStatus.AVAILABLE } -> BitmapDescriptorFactory.HUE_GREEN
-                            compatibleChargers.all { it.chargerStatus == ChargerStatus.FULL } -> BitmapDescriptorFactory.HUE_YELLOW
+                            compatible.isEmpty() || compatible.all { it.chargerStatus == ChargerStatus.OFFLINE } -> BitmapDescriptorFactory.HUE_RED
+                            compatible.any { it.chargerStatus == ChargerStatus.AVAILABLE } -> BitmapDescriptorFactory.HUE_GREEN
+                            compatible.all { it.chargerStatus == ChargerStatus.FULL } -> BitmapDescriptorFactory.HUE_YELLOW
                             else -> BitmapDescriptorFactory.HUE_ORANGE
                         }
                     } else {
-                        when (station.status) {
+                        when (st.status) {
                             StationStatus.AVAILABLE -> BitmapDescriptorFactory.HUE_GREEN
                             StationStatus.OCCUPIED -> BitmapDescriptorFactory.HUE_ORANGE
                             StationStatus.FULL -> BitmapDescriptorFactory.HUE_YELLOW
@@ -622,11 +300,11 @@ fun MainScreen(
                         }
                     }
                     Marker(
-                        state = MarkerState(LatLng(station.latitude, station.longitude)),
-                        title = station.name,
+                        state = MarkerState(LatLng(st.latitude, st.longitude)),
+                        title = st.name,
                         icon = BitmapDescriptorFactory.defaultMarker(color),
                         onClick = {
-                            viewModel.setCurrentStation(station.id)
+                            viewModel.setCurrentStation(st.id)
                             isSheetOpen = true
                             true
                         }
@@ -634,85 +312,122 @@ fun MainScreen(
                 }
             }
 
-            Box {
-                var showChargersForAnimation by remember { mutableStateOf(true) }
-                val sheetState = rememberModalBottomSheetState()
+            // 2. KATMAN: FLOATING (YÜZEN) ARAYÜZ ELEMANLARI
+            if (isLoadingRoute) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f))
+                        .padding(24.dp)
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
 
-                if (isSheetOpen) {
-                    ModalBottomSheet(
-                        sheetState = sheetState,
-                        onDismissRequest = {
-                            isSheetOpen = false
-                            showChargersForAnimation = true
-                            viewModel.clearSelectedTimes()
-                        }
-                    ) {
-                        Box(modifier = Modifier.fillMaxHeight(0.45f)) {
-                            AnimatedContent(
-                                targetState = showChargersForAnimation,
-                                transitionSpec = {
-                                    slideInHorizontally(
-                                        animationSpec = tween(
-                                            durationMillis = 500,
-                                            easing = FastOutSlowInEasing
-                                        ),
-                                        initialOffsetX = { if (targetState) -600 else 600 }
-                                    ) + fadeIn() togetherWith slideOutHorizontally(
-                                        animationSpec = tween(
-                                            durationMillis = 500,
-                                            easing = FastOutSlowInEasing
-                                        ),
-                                        targetOffsetX = { if (targetState) 600 else -600 }
-                                    ) + fadeOut()
-                                }
-                            ) {
-                                if (it) {
-                                    ChargerChoiceScreen(
-                                        chargers = chargerItems,
-                                        onChargerClick = { chargerId ->
-                                            viewModel.setCurrentCharger(chargerId)
-                                            viewModel.getReservationTimeSlots(chargerId = chargerId)
-                                            showChargersForAnimation = false
-                                        },
-                                        station = currentStation,
-                                        vehicle = vehicle,
-                                        usersVehicles = usersVehicles,
-                                        onVehicleAdd = { showCarAddDialog = true },
-                                        onVehicleSelect = {
-                                            viewModel.setCurrentVehicle(it)
-                                            showCarDialog = false
-                                        },
-                                    )
-                                } else {
-                                    ChargerTimeSlotsScreen(
-                                        timeSlots = timeSlots,
-                                        selectedStartIndex = state.selectedStartIndex,
-                                        selectedEndIndex = state.selectedEndIndex,
-                                        onTimeSlotSelected = { viewModel.selectTimeSlot(it) },
-                                        onReservationConfirm = { str, end ->
-                                            viewModel.createReservation()
-                                            //viewModel.fetchDirections()
-                                        },
+            currentReservation?.let { reservation ->
+                ActiveReservationCard(
+                    currentReservation = reservation,
+                    timerValue = timer.value,
+                    routeDistance = routeDistance,
+                    routeDuration = routeDuration,
+                    vehicle = vehicle,
+                    onCancelOrStopClick = { viewModel.changeCancelDialogStatus() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(paddingValues)
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .align(Alignment.TopCenter)
+                )
+            }
+        }
+    }
 
-                                    )
-                                }
+    // 3. KATMAN: BOTTOM SHEET
+    if (isSheetOpen) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        var showChargersForAnimation by remember { mutableStateOf(true) }
+
+        val chargerItems = remember(station, vehicle, currentReservation, reservations) {
+            station?.chargers?.map { ch ->
+                val clickable = vehicle != null && ch.connectorType == vehicle.connectorType && ch.chargerStatus != ChargerStatus.OFFLINE && currentReservation == null
+                val text = when {
+                    ch.chargerStatus == ChargerStatus.OFFLINE -> "Çevrimdışı"
+                    vehicle == null -> "Araç seç"
+                    ch.connectorType != vehicle.connectorType -> "Uyumsuz Soket"
+                    ch.chargerStatus == ChargerStatus.FULL -> "Dolu"
+                    ch.chargerStatus == ChargerStatus.OCCUPIED -> "İleri tarihli rezerve"
+                    else -> "Uygun"
+                }
+                val color = when (ch.chargerStatus) {
+                    ChargerStatus.AVAILABLE -> Color(0xFF4CAF50)
+                    ChargerStatus.OCCUPIED -> Color(0xFFFF9800)
+                    ChargerStatus.FULL -> Color(0xFFF44336)
+                    else -> Color.Gray
+                }
+                ChargerItem(ch, clickable, text, color)
+            } ?: emptyList()
+        }
+
+        ModalBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = {
+                isSheetOpen = false
+                showChargersForAnimation = true
+                viewModel.clearSelectedTimes()
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxHeight(0.55f)) {
+                AnimatedContent(
+                    targetState = showChargersForAnimation,
+                    transitionSpec = {
+                        slideInHorizontally(animationSpec = tween(400, easing = FastOutSlowInEasing), initialOffsetX = { if (targetState) -it else it }) + fadeIn() togetherWith
+                                slideOutHorizontally(animationSpec = tween(400, easing = FastOutSlowInEasing), targetOffsetX = { if (targetState) it else -it }) + fadeOut()
+                    }, label = "BottomSheetAnimation"
+                ) { isChargerScreen ->
+                    if (isChargerScreen) {
+                        ChargerChoiceScreen(
+                            chargers = chargerItems,
+                            station = station,
+                            vehicle = vehicle,
+                            usersVehicles = usersVehicles,
+                            onChargerClick = { chargerId ->
+                                viewModel.setCurrentCharger(chargerId)
+                                viewModel.getReservationTimeSlots(chargerId = chargerId)
+                                showChargersForAnimation = false
+                            },
+                            onVehicleAdd = { showCarAddDialog = true },
+                            onVehicleSelect = {
+                                viewModel.setCurrentVehicle(it)
+                                showCarDialog = false
                             }
-                        }
+                        )
+                    } else {
+                        ChargerTimeSlotsScreen(
+                            timeSlots = timeSlots,
+                            selectedStartIndex = state.selectedStartIndex,
+                            selectedEndIndex = state.selectedEndIndex,
+                            onTimeSlotSelected = { viewModel.selectTimeSlot(it) },
+                            onReservationConfirm = { _, _ ->
+                                viewModel.createReservation()
+                                isSheetOpen = false
+                            }
+                        )
                     }
                 }
             }
         }
     }
 }
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChargerChoiceScreen(
     chargers: List<ChargerItem>,
     station: Station?,
-    vehicle : Vehicle?,
-    usersVehicles : List<Vehicle>,
+    vehicle: Vehicle?,
+    usersVehicles: List<Vehicle>,
     onChargerClick: (Long) -> Unit,
     onVehicleAdd: () -> Unit,
     onVehicleSelect: (Vehicle) -> Unit
@@ -720,7 +435,7 @@ fun ChargerChoiceScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 24.dp)
     ) {
         Column(
             modifier = Modifier
@@ -730,14 +445,14 @@ fun ChargerChoiceScreen(
         ) {
             station?.let {
                 Text(
-                    text = station.name,
-                    style = MaterialTheme.typography.titleLarge,
+                    text = it.name,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = station.address,
+                    text = it.address,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -745,36 +460,38 @@ fun ChargerChoiceScreen(
             }
         }
 
-        if (vehicle!=null){
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (vehicle != null) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = 24.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(chargers) { item ->
-                    val alpha = if (item.clickable) 1f else 0.4f
+                    val alpha = if (item.clickable) 1f else 0.5f
                     ElevatedCard(
                         onClick = { onChargerClick(item.charger.id) },
                         enabled = item.clickable,
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .alpha(alpha)
+                        shape = RoundedCornerShape(20.dp),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (item.clickable) 4.dp else 0.dp),
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = if (item.clickable) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier.fillMaxWidth().alpha(alpha)
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End
                             ) {
-
                                 Box(
                                     modifier = Modifier
                                         .size(12.dp)
@@ -786,7 +503,7 @@ fun ChargerChoiceScreen(
                             Image(
                                 painter = painterResource(R.drawable.charger),
                                 contentDescription = null,
-                                modifier = Modifier.size(64.dp)
+                                modifier = Modifier.size(56.dp)
                             )
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -800,13 +517,13 @@ fun ChargerChoiceScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = item.charger.connectorType.name,
+                                text = item.charger.connectorType.name.replace("_"," "),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
 
                             Text(
-                                text = item.charger.powerOutput.name.replace("KW_", "") + " kW",
+                                text = "${item.charger.powerOutput.name.replace("KW_", "")} kW",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -818,32 +535,32 @@ fun ChargerChoiceScreen(
                                 color = item.statusColor,
                                 fontWeight = FontWeight.Bold
                             )
-
                         }
                     }
                 }
             }
-        }else{
+        } else {
             Text(
                 text = "Rezervasyon için araba seçmeniz gerekmektedir. Arabalarınızdan birini seçebilir veya yeni araba oluşturabilirsiniz.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(modifier = Modifier.height(16.dp))
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (usersVehicles.isNotEmpty()) {
-                    usersVehicles.forEach { vehicle ->
+                    usersVehicles.forEach { v ->
                         OutlinedButton(
-                            onClick = { onVehicleSelect(vehicle) },
+                            onClick = { onVehicleSelect(v) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             Text(
-                                text = "${vehicle.brand} ${vehicle.model}",
+                                text = "${v.brand} ${v.model}",
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }
@@ -860,10 +577,30 @@ fun ChargerChoiceScreen(
                 }
             }
         }
-
+    }
+}@Composable
+fun InfoChip(icon: ImageVector, text: String) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
-
 @Composable
 fun ChargerTimeSlotsScreen(
     timeSlots: List<TimeSlot>,
@@ -872,7 +609,7 @@ fun ChargerTimeSlotsScreen(
     onTimeSlotSelected: (Int) -> Unit,
     onReservationConfirm: (Int, Int) -> Unit,
 
-) {
+    ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1177,27 +914,132 @@ fun CheckPermission(onPermissionGranted: (Boolean) -> Unit) {
     }
 }
 
-@Composable
-fun InfoChip(icon: ImageVector, text: String) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(text, style = MaterialTheme.typography.bodySmall)
-    }
-}
 
-fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
-    MapsInitializer.initialize(context)
-    val drawable = ContextCompat.getDrawable(context, vectorResId) ?: return null
-    drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
-    val bm = Bitmap.createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bm)
-    drawable.draw(canvas)
-    return BitmapDescriptorFactory.fromBitmap(bm)
+
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun ActiveReservationCard(
+    currentReservation: Reservation,
+    timerValue: Int,
+    routeDistance: String?,
+    routeDuration: String?,
+    vehicle: Vehicle?,
+    onCancelOrStopClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isCharging = timerValue > 0
+
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCharging) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        modifier = modifier.shadow(8.dp, RoundedCornerShape(24.dp))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Başlık ve Statü
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = currentReservation.station.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isCharging) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                )
+                if (isCharging) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF4CAF50).copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Şarj Oluyor",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Bilgi Çipleri
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (!isCharging) {
+                    InfoChip(Icons.Default.LocationOn, routeDistance ?: "Hesaplanıyor..")
+                    InfoChip(Icons.Default.AccessTime, routeDuration ?: "--")
+                } else {
+                    vehicle?.let {
+                        InfoChip(Icons.Default.ElectricCar, "${it.brand} ${it.model}")
+                        InfoChip(Icons.Default.ChargingStation,
+                            it.connectorType.name.replace("_"," ")
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Detaylar ve Dashboard
+            if (!isCharging) {
+                Text(
+                    text = "Şarj Hızı: ${currentReservation.charger.chargerType}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${currentReservation.startTime.toLocalTime()} - ${currentReservation.endTime.toLocalTime()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Geçen Süre", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${timerValue / 60}dk ${timerValue % 60}sn", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    }
+                    Box(modifier = Modifier.height(40.dp).width(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Toplam Tutar", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("₺${timerValue / 60 * currentReservation.pricePerKwh}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Button(
+                onClick = onCancelOrStopClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                ),
+                contentPadding = PaddingValues(vertical = 14.dp)
+            ) {
+                Text(
+                    text = if (isCharging) "Şarj İşlemini Durdur" else "Rezervasyonu İptal Et",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall
+                )
+            }
+        }
+    }
 }
