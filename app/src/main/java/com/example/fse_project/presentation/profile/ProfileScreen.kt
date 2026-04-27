@@ -217,7 +217,6 @@ fun WalletCard(balance: Double, onTopUpClick: () -> Unit) {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ReservationCard(
     res: Reservation,

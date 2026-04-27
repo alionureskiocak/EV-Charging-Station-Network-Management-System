@@ -94,8 +94,22 @@ class MainViewModel @Inject constructor(
                             !now.isBefore(it.startTime) && now.isBefore(it.endTime)
                         }
 
-                        val hasFuture = !chargerReservations.any {
-                            it.startTime.isAfter(now)
+                        // Şu andan endOfTomorrow'a kadar her saati kontrol et
+                        val endOfWindow = now.toLocalDate().plusDays(1).atTime(23, 0)
+
+                        var checkTime = now
+                        var hasFuture = false
+
+                        while (checkTime.isBefore(endOfWindow)) {
+                            val slotEnd = checkTime.plusHours(1)
+                            val isSlotOccupied = chargerReservations.any { res ->
+                                checkTime.isBefore(res.endTime) && res.startTime.isBefore(slotEnd)
+                            }
+                            if (!isSlotOccupied) {
+                                hasFuture = true
+                                break
+                            }
+                            checkTime = checkTime.plusHours(1)
                         }
 
                         // BURASI DEĞİŞTİ
@@ -283,7 +297,6 @@ class MainViewModel @Inject constructor(
             //reservationRepo.deleteReservation(resId)
             reservationRepo.updateReservationStatus(resId, ReservationStatus.CANCELLED)
             clearRoute()
-            changeCancelDialogStatus()
             stopBilling()
             _state.update { it.copy(currentReservation = null) }
         }
@@ -348,7 +361,7 @@ class MainViewModel @Inject constructor(
 
         val now = LocalDate.now()
         if (startSlot != null && endSlot != null) {
-            val startTime = LocalDateTime.of(now, LocalTime.of(startSlot.hour, 0))
+            val startTime = LocalDateTime.of(startSlot.date, LocalTime.of(startSlot.hour, 0))
             val endTime = LocalDateTime.of(endSlot.date, LocalTime.of(endSlot.hour, 0)).plusHours(1)
 
             viewModelScope.launch {
