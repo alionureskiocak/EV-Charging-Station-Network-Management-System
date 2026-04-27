@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import javax.inject.Inject
@@ -90,16 +91,18 @@ class MainViewModel @Inject constructor(
                         val now = LocalDateTime.now()
 
                         val isOccupiedNow = chargerReservations.any {
-                            now.isAfter(it.startTime) && now.isBefore(it.endTime)
+                            !now.isBefore(it.startTime) && now.isBefore(it.endTime)
                         }
 
-                        val hasFuture = chargerReservations.any {
+                        val hasFuture = !chargerReservations.any {
                             it.startTime.isAfter(now)
                         }
 
+                        // BURASI DEĞİŞTİ
                         val newStatus = when {
                             isOccupiedNow && hasFuture -> ChargerStatus.OCCUPIED
                             isOccupiedNow && !hasFuture -> ChargerStatus.FULL
+                            // Şu an boş ama ileride rezervasyon var
                             else -> ChargerStatus.AVAILABLE
                         }
 
@@ -203,16 +206,13 @@ class MainViewModel @Inject constructor(
         val charger = _state.value.currentCharger!!
         viewModelScope.launch {
             reservation.status = ReservationStatus.COMPLETED
-            val newAmount = user.wallet.balance - _timerFlow.value/60
+            val newAmount = user.wallet.balance - _timerFlow.value/60*reservation.pricePerKwh
             userRepo.updateWallet(user.id,newAmount)
             reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.COMPLETED)
             stationRepo.updateChargerStatus(charger.id, ChargerStatus.AVAILABLE)
-            _state.value = _state.value.copy(
-                currentReservation = null,
-                //currentCharger = charger.co
-            )
+            _state.value = _state.value.copy(currentReservation = null)
         }
-        println("bitti")
+        stopBilling()
     }
 
     fun getUsers() {
@@ -346,8 +346,9 @@ class MainViewModel @Inject constructor(
         val startSlot = _state.value.timeSlots.find { it.index == startIdx }
         val endSlot = _state.value.timeSlots.find { it.index == endIdx }
 
+        val now = LocalDate.now()
         if (startSlot != null && endSlot != null) {
-            val startTime = LocalDateTime.of(startSlot.date, LocalTime.of(startSlot.hour, 0))
+            val startTime = LocalDateTime.of(now, LocalTime.of(startSlot.hour, 0))
             val endTime = LocalDateTime.of(endSlot.date, LocalTime.of(endSlot.hour, 0)).plusHours(1)
 
             viewModelScope.launch {
@@ -407,7 +408,7 @@ class MainViewModel @Inject constructor(
                 }
 
                 if (now.isAfter(res.endTime)) {
-                    stopBilling()
+                   completeReservation()
                     continue
                 }
                 //TODO AYNI SAAT İÇİNDE GEÇ REZERVASYON YAPILIRSA SAAT BAŞINDAN İTİBAREN PARAYI ÇEKİYOR
@@ -442,7 +443,7 @@ class MainViewModel @Inject constructor(
         for (hour in referenceDate.hour..23) {
             val slotStart = LocalDateTime.of(today, LocalTime.of(hour, 0))
             val slotEnd = slotStart.plusHours(1)
-
+            val now = LocalDateTime.now()
             val isReserved = activeReservationsForCharger.any { res ->
                 slotStart.isBefore(res.endTime) && res.startTime.isBefore(slotEnd)
             }
@@ -450,7 +451,7 @@ class MainViewModel @Inject constructor(
             slots.add(
                 TimeSlot(
                     index = globalIndex++,
-                    hour = hour,
+                    hour = if (hour == now.hour) now.hour else hour,
                     date = today,
                     timeLabel = String.format(
                         "%02d:00 - %02d:00",

@@ -169,6 +169,12 @@ fun MainScreen(
         }
     }
 
+    LaunchedEffect(state.currentStation) {
+        state.currentStation?.chargers?.forEach {
+           println("${it.chargerName}: ${it.chargerStatus}")
+        }
+    }
+
     // Kullanıcı ilk girdiğinde araç seçimi
     LaunchedEffect(currentUser, usersVehicles) {
         if (currentUser != null && vehicle == null) {
@@ -351,20 +357,17 @@ fun MainScreen(
         val chargerItems = remember(station, vehicle, currentReservation, reservations) {
             station?.chargers?.map { ch ->
                 val clickable = vehicle != null && ch.connectorType == vehicle.connectorType && ch.chargerStatus != ChargerStatus.OFFLINE && currentReservation == null
-                val text = when {
-                    ch.chargerStatus == ChargerStatus.OFFLINE -> "Çevrimdışı"
-                    vehicle == null -> "Araç seç"
-                    ch.connectorType != vehicle.connectorType -> "Uyumsuz Soket"
-                    ch.chargerStatus == ChargerStatus.FULL -> "Dolu"
-                    ch.chargerStatus == ChargerStatus.OCCUPIED -> "İleri tarihli rezerve"
-                    else -> "Uygun"
+
+                // Metin ve Renk atamasını aynı anda yapıyoruz ki birbiriyle çelişmesin
+                val (text, color) = when {
+                    ch.chargerStatus == ChargerStatus.OFFLINE -> "Çevrimdışı" to Color.Gray
+                    vehicle == null -> "Araç seç" to Color.Gray
+                    ch.connectorType != vehicle.connectorType -> "Uyumsuz Soket" to Color.Gray
+                    ch.chargerStatus == ChargerStatus.OCCUPIED -> "İleri tarihli rezerve" to Color(0xFFFF9800)
+                    ch.chargerStatus == ChargerStatus.FULL -> "Dolu" to Color(0xFFF44336) // Kırmızı
+                    else -> "Uygun" to Color(0xFF4CAF50) // Yeşil
                 }
-                val color = when (ch.chargerStatus) {
-                    ChargerStatus.AVAILABLE -> Color(0xFF4CAF50)
-                    ChargerStatus.OCCUPIED -> Color(0xFFFF9800)
-                    ChargerStatus.FULL -> Color(0xFFF44336)
-                    else -> Color.Gray
-                }
+
                 ChargerItem(ch, clickable, text, color)
             } ?: emptyList()
         }

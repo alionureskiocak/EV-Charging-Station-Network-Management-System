@@ -102,7 +102,8 @@ fun ProfileScreen(
 
         // 🔹 Rezervasyonlar Listesi
         if (reservations.isEmpty()) {
-            EmptyStateView()
+            // Ağırlık vererek sadece kalan boşluğu kaplamasını sağlıyoruz
+            EmptyStateView(modifier = Modifier.weight(1f).fillMaxWidth())
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -317,11 +318,10 @@ fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String
         )
     }
 }
-
 @Composable
-fun EmptyStateView() {
+fun EmptyStateView(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier, // fillMaxSize() yerine parametreden gelen modifier'ı kullanıyoruz
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -346,7 +346,6 @@ fun EmptyStateView() {
         )
     }
 }
-
 @Composable
 fun WalletDialog(onClick: (Long) -> Unit, onDismiss: () -> Unit) {
     var amount by remember { mutableStateOf("") }
