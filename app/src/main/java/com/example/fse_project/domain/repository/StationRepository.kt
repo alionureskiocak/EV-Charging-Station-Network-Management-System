@@ -3,6 +3,7 @@ package com.example.fse_project.domain.repository
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.relations.StationWithChargers
 import com.example.fse_project.domain.model.Charger
+import com.example.fse_project.domain.model.Favorite
 import com.example.fse_project.domain.model.Station
 import kotlinx.coroutines.flow.Flow
 
@@ -25,4 +26,7 @@ interface StationRepository {
     suspend fun updateChargerStatus(id : Long, status : ChargerStatus)
 
     suspend fun addFavorites(favorite : Favorite)
+    suspend fun removeFavorites(userId : Long, stationId : Long)
+    fun isStationFavorite(userId : Long, stationId : Long) : Flow<Boolean>
+    fun getFavoritesByUser(userId : Long) : Flow<List<Favorite>>
 }

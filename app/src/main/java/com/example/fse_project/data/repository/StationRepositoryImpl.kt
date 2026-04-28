@@ -8,6 +8,7 @@ import com.example.fse_project.data.mapper.toDomain
 import com.example.fse_project.data.mapper.toEntity
 import com.example.fse_project.data.mapper.toStation
 import com.example.fse_project.domain.model.Charger
+import com.example.fse_project.domain.model.Favorite
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.repository.StationRepository
 import dagger.hilt.android.scopes.ViewModelScoped
@@ -76,6 +77,26 @@ class StationRepositoryImpl @Inject constructor(
         status: ChargerStatus
     ) {
         dao.updateChargerStatus(id,status)
+    }
+
+    override suspend fun addFavorites(favorite: Favorite) {
+        val favoriteEntity = favorite.toEntity()
+        dao.addFavorites(favoriteEntity)
+    }
+
+    override suspend fun removeFavorites(userId: Long, stationId: Long) {
+        dao.removeFavorites(userId,stationId)
+    }
+
+    override fun isStationFavorite(
+        userId: Long,
+        stationId: Long
+    ): Flow<Boolean> {
+       return dao.isStationFavorite(userId,stationId)
+    }
+
+    override fun getFavoritesByUser(userId: Long): Flow<List<Favorite>> {
+        return dao.getFavoriteStationsByUser(userId).map { it.map { it.toDomain() } }
     }
 
     override suspend fun createCharger(charger: Charger): Long {

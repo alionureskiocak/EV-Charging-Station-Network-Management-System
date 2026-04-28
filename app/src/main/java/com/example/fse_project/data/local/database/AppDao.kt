@@ -106,7 +106,7 @@ interface AppDao {
     suspend fun addFavorites(favoriteEntity: FavoriteEntity)
 
     @Delete
-    suspend fun removeFavorites(id : Long)
+    suspend fun removeFavorites(userId : Long, stationId : Long)
 
     @Query("""
         SELECT stations.* FROM stations
