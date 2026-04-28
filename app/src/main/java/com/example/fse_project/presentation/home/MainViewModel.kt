@@ -10,6 +10,7 @@ import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.data.remote.model.Step
 import com.example.fse_project.domain.model.Charger
+import com.example.fse_project.domain.model.Favorite
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.User
@@ -85,8 +86,9 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 stationRepo.getStations(),
+                stationRepo.getFavoritesByUser(_state.value.currentUser?.id ?: -1),
                 reservationRepo.getAllReservations()
-            ) { stations, reservations ->
+            ) { stations, favorites, reservations ->
 
                 stations.map { station ->
                     val updatedChargers = station.chargers.map { charger ->
@@ -143,8 +145,10 @@ class MainViewModel @Inject constructor(
                     val refreshedCurrentStation = currentState.currentStation?.let { cs ->
                         updatedStations.find { it.id == cs.id }
                     }
+                    val favoriteStations = currentState.favoriteStations
                     currentState.copy(
                         allStations = updatedStations,
+                        favoriteStations = favoriteStations,
                         searchStations = updatedStations,
                         currentStation = refreshedCurrentStation ?: currentState.currentStation
                     )
@@ -301,6 +305,24 @@ class MainViewModel @Inject constructor(
                 val charger = stationRepo.getChargerById(chargerId)
                 _state.update { it.copy(currentCharger = charger) }
             }
+        }
+    }
+
+    fun toggleFavorite(){
+        viewModelScope.launch {
+            val userId = _state.value.currentUser?.id
+            val stationId = _state.value.currentStation?.id
+            if (userId != null && stationId != null){
+               stationRepo.isStationFavorite(userId!!,stationId!!).collect {
+                   if (it){
+                       stationRepo.removeFavorites(userId,stationId)
+                   }else{
+                       val favorite = Favorite(userId,stationId)
+                       stationRepo.addFavorites(favorite)
+                   }
+               }
+            }
+
         }
     }
 
@@ -598,6 +620,7 @@ data class UiState(
     val allUsers: List<User> = emptyList(),
     val allStations: List<Station> = emptyList(),
     val searchStations : List<Station> = emptyList(),
+    val favoriteStations : List<Favorite> = emptyList(),
     val allReservations: List<Reservation> = emptyList(),
     val usersReservations: List<Reservation> = emptyList(),
     val timeSlots: List<TimeSlot> = emptyList(),
