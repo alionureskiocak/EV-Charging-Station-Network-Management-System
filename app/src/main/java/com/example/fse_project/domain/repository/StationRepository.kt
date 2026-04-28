@@ -23,4 +23,6 @@ interface StationRepository {
     fun getChargersByStation(stationId : Long) : Flow<List<Charger>>
     fun getAllChargers() : Flow<List<Charger>>
     suspend fun updateChargerStatus(id : Long, status : ChargerStatus)
+
+    suspend fun addFavorites(favorite : Favorite)
 }

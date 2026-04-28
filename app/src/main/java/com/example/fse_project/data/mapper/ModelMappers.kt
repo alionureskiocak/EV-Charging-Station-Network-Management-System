@@ -1,6 +1,7 @@
 package com.example.fse_project.data.mapper
 
 import com.example.fse_project.data.local.database.entities.ChargerEntity
+import com.example.fse_project.data.local.database.entities.FavoriteEntity
 import com.example.fse_project.data.local.database.entities.ReservationEntity
 import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.data.local.database.entities.UserEntity
@@ -10,6 +11,7 @@ import com.example.fse_project.data.local.database.relations.ReservationWithDeta
 import com.example.fse_project.data.local.database.relations.StationWithChargers
 import com.example.fse_project.data.local.database.relations.UserWithVehiclesAndWallet
 import com.example.fse_project.domain.model.Charger
+import com.example.fse_project.domain.model.Favorite
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.User
@@ -150,4 +152,14 @@ fun WalletEntity.toDomain(): Wallet = Wallet(
 fun Wallet.toEntity(): WalletEntity = WalletEntity(
     userId = userId,
     balance = balance
+)
+
+fun FavoriteEntity.toDomain() = Favorite(
+    userId = userId,
+    stationId = stationId
+)
+
+fun Favorite.toEntity() = FavoriteEntity(
+    userId = userId,
+    stationId = stationId
 )
