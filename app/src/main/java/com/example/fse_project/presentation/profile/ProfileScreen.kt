@@ -57,7 +57,9 @@ fun ProfileScreen(
             text = { Text("Rezervasyonunuzu iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.") },
             confirmButton = {
                 Button(
-                    onClick = { viewModel.deleteReservation(currentReservation!!.id) },
+                    onClick = { viewModel.deleteReservation(currentReservation!!.id)
+                              viewModel.changeCancelDialogStatus()
+                              },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
                     Text("İptal Et")

@@ -70,6 +70,17 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    fun onStationSearch(searchText : String){
+        if (searchText.isBlank()){
+            _state.update { it.copy(searchStations = _state.value.allStations) }
+        }else{
+            _state.update { it.copy(
+                searchStations = _state.value.allStations.filter { it.name.contains(searchText, ignoreCase = true) }
+            ) }
+        }
+
+    }
+
     private fun observeStationsWithReservations() {
         viewModelScope.launch {
             combine(
@@ -134,6 +145,7 @@ class MainViewModel @Inject constructor(
                     }
                     currentState.copy(
                         allStations = updatedStations,
+                        searchStations = updatedStations,
                         currentStation = refreshedCurrentStation ?: currentState.currentStation
                     )
                 }
@@ -585,6 +597,7 @@ class MainViewModel @Inject constructor(
 data class UiState(
     val allUsers: List<User> = emptyList(),
     val allStations: List<Station> = emptyList(),
+    val searchStations : List<Station> = emptyList(),
     val allReservations: List<Reservation> = emptyList(),
     val usersReservations: List<Reservation> = emptyList(),
     val timeSlots: List<TimeSlot> = emptyList(),

@@ -1,33 +1,15 @@
 package com.example.fse_project.presentation.home
 
+import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.fse_project.domain.model.StationStatus
-import com.google.android.gms.maps.MapsInitializer
-import com.google.android.gms.maps.model.BitmapDescriptor
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.rememberCameraPositionState
-import android.Manifest
 import android.location.Location
 import android.os.Build
-import androidx.compose.ui.graphics.Color
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -42,10 +24,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -56,12 +40,18 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ChargingStation
 import androidx.compose.material.icons.filled.ElectricCar
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -75,37 +65,60 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.example.fse_project.R
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ConnectorType
-import com.example.fse_project.domain.model.Station
-import com.example.fse_project.domain.model.Vehicle
-import com.example.fse_project.R
 import com.example.fse_project.domain.model.Reservation
+import com.example.fse_project.domain.model.Station
+import com.example.fse_project.domain.model.StationStatus
+import com.example.fse_project.domain.model.Vehicle
+import com.example.fse_project.presentation.navigation.Screen
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.MapsInitializer
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.PolyUtil
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
+import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 
@@ -121,7 +134,8 @@ fun MainScreen(
     val currentUser = state.currentUser
     val reservations = state.usersReservations
     val usersVehicles = state.usersVehicles
-    val stations = state.allStations
+    //TODO
+    val stations = state.searchStations
     val timeSlots = if (state.restrictedTimeSlots.isEmpty()) state.timeSlots else state.restrictedTimeSlots
     val station = state.currentStation
     val vehicle = state.currentVehicle
@@ -147,6 +161,8 @@ fun MainScreen(
     var showCarDialog by remember { mutableStateOf(false) }
     var showCarAddDialog by remember { mutableStateOf(false) }
 
+    var searchText by remember { mutableStateOf("") }
+
     val izmir = LatLng(38.4237, 27.1428)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(izmir, 10f)
@@ -154,6 +170,10 @@ fun MainScreen(
 
     val pathPoints = remember(routePolyline) {
         routePolyline?.let { PolyUtil.decode(it) } ?: emptyList()
+    }
+
+    val uiSettings by remember {
+        mutableStateOf(MapUiSettings(zoomControlsEnabled = false))
     }
 
     // Harita animasyonu
@@ -166,12 +186,6 @@ fun MainScreen(
                 update = CameraUpdateFactory.newLatLngBounds(bounds, 100),
                 durationMs = 1000
             )
-        }
-    }
-
-    LaunchedEffect(state.currentStation) {
-        state.currentStation?.chargers?.forEach {
-           println("${it.chargerName}: ${it.chargerStatus}")
         }
     }
 
@@ -216,8 +230,14 @@ fun MainScreen(
         }
     }
 
+    // Harita ayarları (MapStyle dahil etmek istersen alttaki yorum satırını açarsın)
     val properties by remember(hasLocationPermission) {
-        mutableStateOf(MapProperties(isMyLocationEnabled = hasLocationPermission))
+        mutableStateOf(
+            MapProperties(
+                isMyLocationEnabled = hasLocationPermission,
+                // mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style) // Özel JSON stili eklersen burayı aç
+            )
+        )
     }
 
     // İptal / Durdurma Dialogu
@@ -276,7 +296,11 @@ fun MainScreen(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 properties = properties,
-                contentPadding = paddingValues,
+                uiSettings = uiSettings,
+                contentPadding = PaddingValues(
+                    top = paddingValues.calculateTopPadding() + 80.dp, // Arama çubuğu Google logolarını vs ezmesin
+                    bottom = paddingValues.calculateBottomPadding() + 80.dp
+                ),
                 onMapClick = { /* Boşluk tıklandığında */ }
             ) {
                 if (pathPoints.isNotEmpty()) {
@@ -289,7 +313,7 @@ fun MainScreen(
                 }
 
                 stations.forEach { st ->
-                    val color = if (vehicle != null) {
+                    val hue = if (vehicle != null) {
                         val compatible = st.chargers.filter { it.connectorType == vehicle.connectorType }
                         when {
                             compatible.isEmpty() || compatible.all { it.chargerStatus == ChargerStatus.OFFLINE } -> BitmapDescriptorFactory.HUE_RED
@@ -308,7 +332,7 @@ fun MainScreen(
                     Marker(
                         state = MarkerState(LatLng(st.latitude, st.longitude)),
                         title = st.name,
-                        icon = BitmapDescriptorFactory.defaultMarker(color),
+                        icon = BitmapDescriptorFactory.defaultMarker(hue),
                         onClick = {
                             viewModel.setCurrentStation(st.id)
                             isSheetOpen = true
@@ -318,7 +342,8 @@ fun MainScreen(
                 }
             }
 
-            // 2. KATMAN: FLOATING (YÜZEN) ARAYÜZ ELEMANLARI
+            // 2. KATMAN: YÜZEN ARAYÜZ (FLOATING UI) ELEMANLARI
+
             if (isLoadingRoute) {
                 Box(
                     modifier = Modifier
@@ -331,21 +356,57 @@ fun MainScreen(
                 }
             }
 
-            currentReservation?.let { reservation ->
-                ActiveReservationCard(
-                    currentReservation = reservation,
-                    timerValue = timer.value,
-                    routeDistance = routeDistance,
-                    routeDuration = routeDuration,
-                    vehicle = vehicle,
-                    onCancelOrStopClick = { viewModel.changeCancelDialogStatus() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(paddingValues)
-                        .padding(horizontal = 16.dp, vertical = 16.dp)
-                        .align(Alignment.TopCenter)
-                )
+            // 🔹 ÜST KISIM: Arama Çubuğu veya Rezervasyon Kartı
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .padding(top = paddingValues.calculateTopPadding() + 16.dp)
+                    .padding(horizontal = 16.dp)
+            ) {
+                if (currentReservation != null) {
+                    ActiveReservationCard(
+                        currentReservation = currentReservation,
+                        timerValue = timer.value,
+                        routeDistance = routeDistance,
+                        routeDuration = routeDuration,
+                        vehicle = vehicle,
+                        onCancelOrStopClick = { viewModel.changeCancelDialogStatus() }
+                    )
+                } else {
+                    FloatingSearchBar(
+                        searchText = searchText,
+                        onSearchTextChanged = {
+                            searchText = it
+                            viewModel.onStationSearch(searchText)
+                                              },
+                        onProfileClick = {navController.navigate(Screen.ProfileScreen.route)}
+                    )
+                }
             }
+
+            // 🔹 SAĞ ALT KISIM: Konumuma Git Butonu (FAB)
+            FloatingActionButton(
+                onClick = { /* TODO: Kamerayı konuma kaydır */ },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = paddingValues.calculateBottomPadding() + 96.dp, end = 16.dp), // Filtre menüsünün üstünde durur
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                shape = CircleShape,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+            ) {
+                Icon(imageVector = Icons.Default.MyLocation, contentDescription = "Konumumu Bul")
+            }
+
+            // 🔹 ALT ORTA KISIM: Favoriler ve Filtre Menüsü
+            FloatingMapActions(
+                onFavoritesClick = { /* TODO: Favorileri filtrele */ },
+                onFilterClick = { /* TODO: Filtre ekranını aç */ },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = paddingValues.calculateBottomPadding() + 24.dp)
+            )
         }
     }
 
@@ -358,14 +419,13 @@ fun MainScreen(
             station?.chargers?.map { ch ->
                 val clickable = vehicle != null && ch.connectorType == vehicle.connectorType && ch.chargerStatus != ChargerStatus.OFFLINE && currentReservation == null
 
-                // Metin ve Renk atamasını aynı anda yapıyoruz ki birbiriyle çelişmesin
                 val (text, color) = when {
                     ch.chargerStatus == ChargerStatus.OFFLINE -> "Çevrimdışı" to Color.Gray
                     vehicle == null -> "Araç seç" to Color.Gray
                     ch.connectorType != vehicle.connectorType -> "Uyumsuz Soket" to Color.Gray
+                    ch.chargerStatus == ChargerStatus.FULL -> "Dolu" to Color(0xFFF44336)
                     ch.chargerStatus == ChargerStatus.OCCUPIED -> "İleri tarihli rezerve" to Color(0xFFFF9800)
-                    ch.chargerStatus == ChargerStatus.FULL -> "Dolu" to Color(0xFFF44336) // Kırmızı
-                    else -> "Uygun" to Color(0xFF4CAF50) // Yeşil
+                    else -> "Uygun" to Color(0xFF4CAF50)
                 }
 
                 ChargerItem(ch, clickable, text, color)
@@ -424,6 +484,134 @@ fun MainScreen(
         }
     }
 }
+
+@Composable
+fun FloatingSearchBar(
+    searchText: String,
+    onSearchTextChanged: (String) -> Unit,
+    onProfileClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .shadow(6.dp, RoundedCornerShape(28.dp)),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Ara",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // TextField Alanı
+            Box(modifier = Modifier.weight(1f)) {
+                if (searchText.isEmpty()) {
+                    Text(
+                        text = "Şarj istasyonu ara...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                BasicTextField(
+                    value = searchText,
+                    onValueChange = onSearchTextChanged,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "Profil",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FloatingMapActions(
+    onFavoritesClick: () -> Unit,
+    onFilterClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.shadow(8.dp, RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
+        Row(
+            modifier = Modifier.height(IntrinsicSize.Min),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = onFavoritesClick,
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FavoriteBorder,
+                    contentDescription = "Favoriler",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Favoriler",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight(0.6f)
+                    .width(1.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            )
+
+            TextButton(
+                onClick = onFilterClick,
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FilterList,
+                    contentDescription = "Filtrele",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Filtrele",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChargerChoiceScreen(
@@ -520,7 +708,7 @@ fun ChargerChoiceScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = item.charger.connectorType.name.replace("_"," "),
+                                text = item.charger.connectorType.name.replace("_", " "),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -581,7 +769,9 @@ fun ChargerChoiceScreen(
             }
         }
     }
-}@Composable
+}
+
+@Composable
 fun InfoChip(icon: ImageVector, text: String) {
     Row(
         modifier = Modifier
@@ -604,6 +794,7 @@ fun InfoChip(icon: ImageVector, text: String) {
         )
     }
 }
+
 @Composable
 fun ChargerTimeSlotsScreen(
     timeSlots: List<TimeSlot>,
@@ -611,8 +802,7 @@ fun ChargerTimeSlotsScreen(
     selectedEndIndex: Int?,
     onTimeSlotSelected: (Int) -> Unit,
     onReservationConfirm: (Int, Int) -> Unit,
-
-    ) {
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -663,7 +853,6 @@ fun ChargerTimeSlotsScreen(
                 }
             }
         }
-
 
         Button(
             onClick = {
@@ -782,7 +971,7 @@ fun CarAddDialog(
                 OutlinedTextField(
                     value = brandText,
                     onValueChange = { brandText = it },
-                    label = { Text("Marka",color = Color.LightGray) },
+                    label = { Text("Marka", color = Color.LightGray) },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -791,7 +980,7 @@ fun CarAddDialog(
                 OutlinedTextField(
                     value = modelText,
                     onValueChange = { modelText = it },
-                    label = { Text("Model",color = Color.LightGray) },
+                    label = { Text("Model", color = Color.LightGray) },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -800,7 +989,7 @@ fun CarAddDialog(
                 OutlinedTextField(
                     value = capacityText,
                     onValueChange = { capacityText = it },
-                    label = { Text("Batarya Kapasitesi (kWh)",color = Color.LightGray) },
+                    label = { Text("Batarya Kapasitesi (kWh)", color = Color.LightGray) },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -810,7 +999,7 @@ fun CarAddDialog(
                 OutlinedTextField(
                     value = licensePlateText,
                     onValueChange = { licensePlateText = it },
-                    label = { Text("Plaka",color = Color.LightGray) },
+                    label = { Text("Plaka", color = Color.LightGray) },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -824,7 +1013,7 @@ fun CarAddDialog(
                         value = selectedConnector.name,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Soket Tipi",color = Color.LightGray) },
+                        label = { Text("Soket Tipi", color = Color.LightGray) },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         },
@@ -898,7 +1087,6 @@ fun CheckPermission(onPermissionGranted: (Boolean) -> Unit) {
         )
     }
 
-
     LaunchedEffect(hasLocationPermission) {
         onPermissionGranted(hasLocationPermission)
     }
@@ -916,9 +1104,6 @@ fun CheckPermission(onPermissionGranted: (Boolean) -> Unit) {
         }
     }
 }
-
-
-
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -981,8 +1166,9 @@ fun ActiveReservationCard(
                 } else {
                     vehicle?.let {
                         InfoChip(Icons.Default.ElectricCar, "${it.brand} ${it.model}")
-                        InfoChip(Icons.Default.ChargingStation,
-                            it.connectorType.name.replace("_"," ")
+                        InfoChip(
+                            Icons.Default.ChargingStation,
+                            it.connectorType.name.replace("_", " ")
                         )
                     }
                 }
