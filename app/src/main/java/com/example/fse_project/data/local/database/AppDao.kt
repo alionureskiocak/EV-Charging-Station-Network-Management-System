@@ -1,12 +1,14 @@
 package com.example.fse_project.data.local.database
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.example.fse_project.data.local.database.entities.ChargerEntity
 import com.example.fse_project.data.local.database.entities.ChargerStatus
+import com.example.fse_project.data.local.database.entities.FavoriteEntity
 import com.example.fse_project.data.local.database.entities.ReservationEntity
 import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.data.local.database.entities.StationEntity
@@ -97,6 +99,8 @@ interface AppDao {
                 "WHERE c.id = :chargerId"
     )
     suspend fun getStationByChargerId(chargerId: Long): StationEntity
+
+
 
     @Query("SELECT * FROM stations")
     fun getStations(): Flow<List<StationEntity>>
