@@ -100,7 +100,23 @@ interface AppDao {
     )
     suspend fun getStationByChargerId(chargerId: Long): StationEntity
 
+    /////////////// FAVORITES //////////////////////////
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun addFavorites(favoriteEntity: FavoriteEntity)
+
+    @Delete
+    suspend fun removeFavorites(id : Long)
+
+    @Query("""
+        SELECT stations.* FROM stations
+         INNER JOIN favorites ON stations.id = favorites.stationId
+         WHERE favorites.userId = :userId
+    """)
+    fun getFavoriteStationsByUser(userId : Long) : Flow<List<FavoriteEntity>>
+
+    @Query("SELECT EXISTS (SELECT 1 FROM favorites WHERE userId = :userId AND stationId = :stationId)")
+    fun isStationFavorite(userId : Long, stationId : Long) : Flow<Boolean>
 
     @Query("SELECT * FROM stations")
     fun getStations(): Flow<List<StationEntity>>
