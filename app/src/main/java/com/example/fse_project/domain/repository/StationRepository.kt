@@ -28,5 +28,5 @@ interface StationRepository {
     suspend fun addFavorites(favorite : Favorite)
     suspend fun removeFavorites(userId : Long, stationId : Long)
     fun isStationFavorite(userId : Long, stationId : Long) : Flow<Boolean>
-    fun getFavoritesByUser(userId : Long) : Flow<List<Favorite>>
+    fun getFavoritesByUser(userId : Long) : Flow<List<Station>>
 }

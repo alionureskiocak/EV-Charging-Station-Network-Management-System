@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ChargingStation
 import androidx.compose.material.icons.filled.ElectricCar
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
@@ -68,6 +69,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -134,8 +136,8 @@ fun MainScreen(
     val currentUser = state.currentUser
     val reservations = state.usersReservations
     val usersVehicles = state.usersVehicles
-    //TODO
-    val stations = state.searchStations
+    val isStationsFavorite = state.isStationsFavorite
+    val stations = state.displayedStations
     val timeSlots = if (state.restrictedTimeSlots.isEmpty()) state.timeSlots else state.restrictedTimeSlots
     val station = state.currentStation
     val vehicle = state.currentVehicle
@@ -153,6 +155,10 @@ fun MainScreen(
 
     var hasLocationPermission by remember { mutableStateOf(false) }
     CheckPermission { hasLocationPermission = it }
+
+    LaunchedEffect(stations) {
+        println("stations: $stations")
+    }
 
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
@@ -401,19 +407,23 @@ fun MainScreen(
 
             // 🔹 ALT ORTA KISIM: Favoriler ve Filtre Menüsü
             FloatingMapActions(
-                onFavoritesClick = { /* TODO: Favorileri filtrele */ },
+                onFavoritesClick = { viewModel.onFavoritesClick() },
                 onFilterClick = { /* TODO: Filtre ekranını aç */ },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = paddingValues.calculateBottomPadding() + 24.dp)
+                    .padding(bottom = paddingValues.calculateBottomPadding() + 24.dp),
+                isStationsFavorite = isStationsFavorite
             )
         }
     }
 
     // 3. KATMAN: BOTTOM SHEET
+    // 3. KATMAN: BOTTOM SHEET
     if (isSheetOpen) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
         var showChargersForAnimation by remember { mutableStateOf(true) }
+
+        val isFavorite = viewModel.isStationFavorite(station!!.id)
 
         val chargerItems = remember(station, vehicle, currentReservation, reservations) {
             station?.chargers?.map { ch ->
@@ -456,6 +466,10 @@ fun MainScreen(
                             station = station,
                             vehicle = vehicle,
                             usersVehicles = usersVehicles,
+                            isFavorite = isFavorite, // YENİ
+                            onFavoriteToggle = {
+                                viewModel.toggleFavorite()
+                            },
                             onChargerClick = { chargerId ->
                                 viewModel.setCurrentCharger(chargerId)
                                 viewModel.getReservationTimeSlots(chargerId = chargerId)
@@ -552,6 +566,7 @@ fun FloatingSearchBar(
 fun FloatingMapActions(
     onFavoritesClick: () -> Unit,
     onFilterClick: () -> Unit,
+    isStationsFavorite : Boolean,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -570,7 +585,7 @@ fun FloatingMapActions(
                 shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.FavoriteBorder,
+                    imageVector = if (isStationsFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Favoriler",
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -619,6 +634,8 @@ fun ChargerChoiceScreen(
     station: Station?,
     vehicle: Vehicle?,
     usersVehicles: List<Vehicle>,
+    isFavorite: Boolean, // YENİ
+    onFavoriteToggle: () -> Unit, // YENİ
     onChargerClick: (Long) -> Unit,
     onVehicleAdd: () -> Unit,
     onVehicleSelect: (Vehicle) -> Unit
@@ -628,25 +645,42 @@ fun ChargerChoiceScreen(
             .fillMaxSize()
             .padding(horizontal = 24.dp)
     ) {
-        Column(
+        // 🔹 Başlık ve Favori Butonu Alanı
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically // Ortalamak için
         ) {
-            station?.let {
-                Text(
-                    text = it.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = it.address,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
+            Column(modifier = Modifier.weight(1f)) {
+                station?.let {
+                    Text(
+                        text = it.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = it.address,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Kalp (Favori) Butonu
+            IconButton(
+                onClick = onFavoriteToggle,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Favoriye Ekle",
+                    tint = if (isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }

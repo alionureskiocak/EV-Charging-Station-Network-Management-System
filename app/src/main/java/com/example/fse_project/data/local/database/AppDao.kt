@@ -105,15 +105,15 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addFavorites(favoriteEntity: FavoriteEntity)
 
-    @Delete
+    @Query("DELETE FROM favorites WHERE userId = :userId AND stationId = :stationId")
     suspend fun removeFavorites(userId : Long, stationId : Long)
 
     @Query("""
-        SELECT stations.* FROM stations
-         INNER JOIN favorites ON stations.id = favorites.stationId
-         WHERE favorites.userId = :userId
+        SELECT stations.* FROM stations 
+        INNER JOIN favorites ON stations.id = favorites.stationId 
+        WHERE favorites.userId = :userId
     """)
-    fun getFavoriteStationsByUser(userId : Long) : Flow<List<FavoriteEntity>>
+    fun getFavoriteStationsByUser(userId : Long) : Flow<List<StationEntity>>
 
     @Query("SELECT EXISTS (SELECT 1 FROM favorites WHERE userId = :userId AND stationId = :stationId)")
     fun isStationFavorite(userId : Long, stationId : Long) : Flow<Boolean>

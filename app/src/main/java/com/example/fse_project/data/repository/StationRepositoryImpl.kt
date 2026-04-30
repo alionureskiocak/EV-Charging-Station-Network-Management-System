@@ -95,7 +95,7 @@ class StationRepositoryImpl @Inject constructor(
        return dao.isStationFavorite(userId,stationId)
     }
 
-    override fun getFavoritesByUser(userId: Long): Flow<List<Favorite>> {
+    override fun getFavoritesByUser(userId: Long): Flow<List<Station>> {
         return dao.getFavoriteStationsByUser(userId).map { it.map { it.toDomain() } }
     }
 

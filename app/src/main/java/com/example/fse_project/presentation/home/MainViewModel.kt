@@ -71,24 +71,25 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun onStationSearch(searchText : String){
-        if (searchText.isBlank()){
-            _state.update { it.copy(searchStations = _state.value.allStations) }
-        }else{
-            _state.update { it.copy(
-                searchStations = _state.value.allStations.filter { it.name.contains(searchText, ignoreCase = true) }
-            ) }
-        }
+    fun onStationSearch(text: String) {
+        _state.update { it.copy(searchText = text) }
+    }
 
+    fun onFavoritesClick(){
+        if (_state.value.isStationsFavorite == false){
+            _state.update { it.copy(isStationsFavorite = true) }
+        }
+        else {
+            _state.update { it.copy(isStationsFavorite = false) }
+        }
     }
 
     private fun observeStationsWithReservations() {
         viewModelScope.launch {
             combine(
                 stationRepo.getStations(),
-                stationRepo.getFavoritesByUser(_state.value.currentUser?.id ?: -1),
                 reservationRepo.getAllReservations()
-            ) { stations, favorites, reservations ->
+            ) { stations, reservations ->
 
                 stations.map { station ->
                     val updatedChargers = station.chargers.map { charger ->
@@ -125,7 +126,6 @@ class MainViewModel @Inject constructor(
                             checkTime = checkTime.plusHours(1)
                         }
 
-                        // BURASI DEĞİŞTİ
                         val newStatus = when {
                             isOccupiedNow && hasFuture -> ChargerStatus.OCCUPIED
                             isOccupiedNow && !hasFuture -> ChargerStatus.FULL
@@ -140,16 +140,13 @@ class MainViewModel @Inject constructor(
                 }
             }.collect { updatedStations ->
                 _state.update { currentState ->
-                    // BUG FIX 2: currentStation da güncel station listesinden yenileniyor
-                    // Böylece setCurrentStation'dan gelen stale data sorunu çözülüyor
+
                     val refreshedCurrentStation = currentState.currentStation?.let { cs ->
                         updatedStations.find { it.id == cs.id }
                     }
                     val favoriteStations = currentState.favoriteStations
                     currentState.copy(
                         allStations = updatedStations,
-                        favoriteStations = favoriteStations,
-                        searchStations = updatedStations,
                         currentStation = refreshedCurrentStation ?: currentState.currentStation
                     )
                 }
@@ -161,30 +158,27 @@ class MainViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeUserData() {
         viewModelScope.launch {
-
             sessionManager.currentUserId
                 .filterNotNull()
                 .flatMapLatest { userId ->
 
                     val userFlow = userRepo.getUserProfile(userId)
-
-                    val reservationFlow =
-                        reservationRepo.getAllReservationsByUserId(userId)
-
-                    val vehicleFlow =
-                        userRepo.getVehiclesByUserId(userId)
-
+                    val reservationFlow = reservationRepo.getAllReservationsByUserId(userId)
+                    val vehicleFlow = userRepo.getVehiclesByUserId(userId)
+                    val favoriteFlow = stationRepo.getFavoritesByUser(userId)
 
                     combine(
                         userFlow,
                         reservationFlow,
-                        vehicleFlow
-                    ) { user, reservations, vehicles ->
+                        vehicleFlow,
+                        favoriteFlow // 🔹 YENİ
+                    ) { user, reservations, vehicles, favorites ->
 
                         UiState(
                             currentUser = user,
                             usersReservations = reservations,
                             usersVehicles = vehicles,
+                            favoriteStations = favorites, // 🔹 YENİ: Favoriler State'e yazıldı
                             currentReservation = reservations.firstOrNull { it.status == ReservationStatus.ACTIVE },
                             currentCharger = reservations.lastOrNull()?.charger,
                             currentStation =  reservations.lastOrNull()?.station,
@@ -194,35 +188,22 @@ class MainViewModel @Inject constructor(
                 }
                 .collect { newState ->
                     _state.update { old ->
-                        var diff = 0L
-                        if (newState.currentReservation != null) {
-                            val res = newState.currentReservation
-                            val today = LocalDateTime.now()
-                            diff = Duration.between(res.startTime, today).toSeconds()
-                                .toLong()
-                        }
-                        //if (newState.usersReservations.isNotEmpty() && findDiff(newState.currentReservation!!.startTime) >= 0) startBilling()
-                       val updatedState = old.copy(
-                           currentUser = newState.currentUser,
+                        val updatedState = old.copy(
+                            currentUser = newState.currentUser,
                             usersReservations = newState.usersReservations,
                             usersVehicles = newState.usersVehicles,
+                            favoriteStations = newState.favoriteStations, // 🔹 YENİ
                             currentReservation = newState.currentReservation,
                             currentStation = newState.currentStation ?: old.currentStation,
                             currentCharger = newState.currentCharger ?: old.currentCharger,
                             currentVehicle = newState.currentVehicle ?: old.currentVehicle,
-                            )
+                        )
 
                         val res = newState.currentReservation
                         val now = LocalDateTime.now()
-                        if (res != null &&
-                            res.status == ReservationStatus.ACTIVE &&
-                            now.isAfter(res.startTime) &&
-                            now.isBefore(res.endTime)
-                        ) {
+                        if (res != null && res.status == ReservationStatus.ACTIVE && now.isAfter(res.startTime) && now.isBefore(res.endTime)) {
                             startBilling()
                         }
-
-
                         updatedState
                     }
                 }
@@ -313,17 +294,16 @@ class MainViewModel @Inject constructor(
             val userId = _state.value.currentUser?.id
             val stationId = _state.value.currentStation?.id
             if (userId != null && stationId != null){
-               stationRepo.isStationFavorite(userId!!,stationId!!).collect {
-                   if (it){
-                       stationRepo.removeFavorites(userId,stationId)
-                   }else{
-                       val favorite = Favorite(userId,stationId)
-                       stationRepo.addFavorites(favorite)
-                   }
-               }
+               if (isStationFavorite(stationId)) stationRepo.removeFavorites(userId,stationId)
+                else
+                    stationRepo.addFavorites(Favorite(userId,stationId))
             }
 
         }
+    }
+
+    fun isStationFavorite(stationId : Long) : Boolean{
+        return _state.value.favoriteStations.any { it.id == stationId }
     }
 
     fun deleteReservation(resId: Long) {
@@ -619,8 +599,8 @@ class MainViewModel @Inject constructor(
 data class UiState(
     val allUsers: List<User> = emptyList(),
     val allStations: List<Station> = emptyList(),
-    val searchStations : List<Station> = emptyList(),
-    val favoriteStations : List<Favorite> = emptyList(),
+    val favoriteStations : List<Station> = emptyList(),
+    val isStationsFavorite : Boolean = false,
     val allReservations: List<Reservation> = emptyList(),
     val usersReservations: List<Reservation> = emptyList(),
     val timeSlots: List<TimeSlot> = emptyList(),
@@ -646,5 +626,26 @@ data class UiState(
 
     val isChargingNow : Boolean = false,
 
-    val userLocation: LatLng? = null
-)
+    val userLocation: LatLng? = null,
+    val searchText: String = ""
+) {
+    val displayedStations: List<Station>
+        get() {
+            // 1. ADIM: Ekrana her zaman "allStations" (renkleri hesaplanmış canlı liste) basılacak.
+            // Eğer favorilerdeysek, allStations'ı filtreleyip sadece favori ID'sine sahip olanları bırakıyoruz.
+            val baseList = if (isStationsFavorite) {
+                allStations.filter { station ->
+                    favoriteStations.any { fav -> fav.id == station.id }
+                }
+            } else {
+                allStations
+            }
+
+            // 2. ADIM: Arama metni varsa listeyi isme göre daraltıyoruz
+            return if (searchText.isBlank()) {
+                baseList
+            } else {
+                baseList.filter { it.name.contains(searchText, ignoreCase = true) }
+            }
+        }
+}
