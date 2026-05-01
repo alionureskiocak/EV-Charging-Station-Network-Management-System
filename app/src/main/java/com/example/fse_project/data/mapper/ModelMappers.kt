@@ -173,19 +173,17 @@ fun Favorite.toEntity() = FavoriteEntity(
 )
 
 fun ReportErrorEntity.toDomain() = ReportError(
-    resId = resId,
     userId = userId,
     stationId = stationId,
-    chargerId = chargerId,
     report = report,
-    description = description
+    description = description,
+    id = id
 )
 
 fun ReportError.toDomain() = ReportErrorEntity(
-    resId = resId,
     userId = userId,
     stationId = stationId,
-    chargerId = chargerId,
     report = report,
-    description = description
+    description = description,
+    id = id
 )

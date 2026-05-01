@@ -63,6 +63,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -77,6 +78,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -100,6 +102,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -111,6 +114,7 @@ import androidx.navigation.NavHostController
 import com.example.fse_project.R
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ConnectorType
+import com.example.fse_project.data.local.database.entities.Report
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.StationStatus
@@ -161,6 +165,8 @@ fun MainScreen(
     val showResCancelDialog = state.showResCancelDialog
     val consumedKwh = state.currentKwh
     val showReceipt = state.showReceipt
+
+    var showReportDialog by remember { mutableStateOf(false) }
 
     val closestAvailableStations = state.closestAvailableStations
 
@@ -266,6 +272,11 @@ fun MainScreen(
         )
     }
 
+    if (state.showToast){
+        Toast.makeText(context,state.toastMsg,Toast.LENGTH_SHORT).show()
+        viewModel.closeToast()
+    }
+
     // İptal / Durdurma Dialogu
     if (showResCancelDialog) {
         AlertDialog(
@@ -288,6 +299,17 @@ fun MainScreen(
                     viewModel.changeCancelDialogStatus()
                     //
                 }) { Text("Vazgeç") }
+            }
+        )
+    }
+
+    if (showReportDialog){
+        StationReportDialog(
+            onDismiss = { showReportDialog = false },
+            onSubmit = { report , description ->
+            viewModel.reportStation(report,description)
+                showReportDialog = false
+                viewModel.showToast("İstasyon Rapor Edildi.")
             }
         )
     }
@@ -388,8 +410,8 @@ fun MainScreen(
                     onToggle = { isNearbyListOpen = !isNearbyListOpen },
                     onStationClick = { stationId ->
                         viewModel.setCurrentStation(stationId)
-                        isSheetOpen = true // Alt sayfayı aç (Marker'a tıklanmış gibi)
-                        isNearbyListOpen = false // Seçimden sonra listeyi kapat
+                        isSheetOpen = true
+                        isNearbyListOpen = false
                     }
                 )
             }
@@ -533,7 +555,8 @@ fun MainScreen(
                             onVehicleSelect = {
                                 viewModel.setCurrentVehicle(it)
                                 showCarDialog = false
-                            }
+                            },
+                            onReportClick = {showReportDialog = true}
                         )
                     } else {
                         ChargerTimeSlotsScreen(
@@ -738,7 +761,8 @@ fun ChargerChoiceScreen(
     onFavoriteToggle: () -> Unit,
     onChargerClick: (Long) -> Unit,
     onVehicleAdd: () -> Unit,
-    onVehicleSelect: (Vehicle) -> Unit
+    onVehicleSelect: (Vehicle) -> Unit,
+    onReportClick : () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -769,7 +793,20 @@ fun ChargerChoiceScreen(
                     )
                 }
             }
-
+            IconButton(
+                onClick = { onReportClick() },
+                modifier = Modifier
+                    .padding(end = 4.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Report,
+                    contentDescription = "Rapor",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             IconButton(
                 onClick = onFavoriteToggle,
                 modifier = Modifier
@@ -1509,13 +1546,13 @@ fun ReceiptRow(label: String, value: String) {
             text = label,
             style = MaterialTheme.typography.bodyMedium,
             color = Color.DarkGray,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            fontFamily = FontFamily.Monospace
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            fontFamily = FontFamily.Monospace
         )
     }
 }
@@ -1631,6 +1668,55 @@ fun StationListMember(name: String, distance: Float, onClick: () -> Unit) {
             Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StationReportDialog(
+    onDismiss: () -> Unit,
+    onSubmit: (com.example.fse_project.data.local.database.entities.Report, String) -> Unit
+) {
+    var selectedCat by remember { mutableStateOf(Report.CABLE_DAMAGED) }
+    var desc by remember { mutableStateOf("") }
+    val categories = Report.values()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Sorun Bildir", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Lütfen bir kategori seçin:", style = MaterialTheme.typography.bodySmall)
+
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(categories) { cat ->
+                        FilterChip(
+                            selected = selectedCat == cat,
+                            onClick = { selectedCat = cat },
+                            label = { Text(cat.text) }
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = desc,
+                    onValueChange = { desc = it },
+                    label = { Text("Açıklama") },
+                    placeholder = { Text("Sorunu detaylandırın...") },
+                    modifier = Modifier.fillMaxWidth().height(100.dp),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSubmit(selectedCat, desc) },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) { Text("Gönder") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("İptal") }
+        }
+    )
 }
 
 enum class FilterChoice(val choice : String){

@@ -1,5 +1,6 @@
 package com.example.fse_project.presentation.home
 
+import android.content.Context
 import android.health.connect.datatypes.ExerciseRoute.Location
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -11,6 +12,7 @@ import com.example.fse_project.data.datastore.SessionManager
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ConnectorType
 import com.example.fse_project.data.local.database.entities.PowerOutput
+import com.example.fse_project.data.local.database.entities.Report
 import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.data.remote.model.Step
 import com.example.fse_project.domain.model.Charger
@@ -651,18 +653,36 @@ class MainViewModel @Inject constructor(
         _state.update { it.copy(showResCancelDialog = !_state.value.showResCancelDialog) }
     }
 
-    fun calculateDistance(start: LatLng, end: LatLng): Float {
-        val results = FloatArray(1)
-        android.location.Location.distanceBetween(
-            start.latitude, start.longitude,
-            end.latitude, end.longitude,
-            results
-        )
-        return results[0]
+    fun reportStation(
+        report : Report,
+        description : String){
+        viewModelScope.launch {
+            val currentUser = _state.value.currentUser ?: return@launch
+            val currentStation = _state.value.currentStation ?: return@launch
+            println("sexxxx")
+            val reportError = ReportError(
+                id = 0,
+                userId = currentUser.id,
+                stationId = currentStation.id,
+                report = report,
+                description = description
+            )
+            reportRepo.insertReport(reportError)
+        }
+    }
+
+    fun showToast(msg : String){
+        _state.update { it.copy(showToast = true, toastMsg = msg) }
+    }
+    fun closeToast(){
+        _state.update { it.copy(showToast = false) }
     }
 }
 
+
 data class UiState(
+    val showToast : Boolean = false,
+    val toastMsg : String = "",
     val allUsers: List<User> = emptyList(),
     val allStations: List<Station> = emptyList(),
     val favoriteStations : List<Station> = emptyList(),
