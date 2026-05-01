@@ -1,7 +1,6 @@
 package com.example.fse_project.data.local.database
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -10,6 +9,8 @@ import androidx.room.Upsert
 import com.example.fse_project.data.local.database.entities.ChargerEntity
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.FavoriteEntity
+import com.example.fse_project.data.local.database.entities.Report
+import com.example.fse_project.data.local.database.entities.ReportErrorEntity
 import com.example.fse_project.data.local.database.entities.ReservationEntity
 import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.data.local.database.entities.StationEntity
@@ -147,6 +148,14 @@ interface AppDao {
     @Query("UPDATE chargers SET chargerStatus = :newStatus WHERE id = :chargerId")
     suspend fun updateChargerStatus(chargerId : Long, newStatus : ChargerStatus)
 
+
+    /////////////// CHARGER //////////////////////////
+
+    @Insert
+    suspend fun insertReport(report : ReportErrorEntity) : Long
+
+    @Query("SELECT * FROM reports")
+    fun getAllReports() : Flow<List<ReportErrorEntity>>
 
     ///////////// RESERVATION ////////////////////////////
 

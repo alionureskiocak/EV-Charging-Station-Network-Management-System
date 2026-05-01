@@ -2,6 +2,7 @@ package com.example.fse_project.data.mapper
 
 import com.example.fse_project.data.local.database.entities.ChargerEntity
 import com.example.fse_project.data.local.database.entities.FavoriteEntity
+import com.example.fse_project.data.local.database.entities.ReportErrorEntity
 import com.example.fse_project.data.local.database.entities.ReservationEntity
 import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.data.local.database.entities.UserEntity
@@ -12,6 +13,7 @@ import com.example.fse_project.data.local.database.relations.StationWithChargers
 import com.example.fse_project.data.local.database.relations.UserWithVehiclesAndWallet
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Favorite
+import com.example.fse_project.domain.model.ReportError
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.User
@@ -168,4 +170,22 @@ fun FavoriteEntity.toDomain() = Favorite(
 fun Favorite.toEntity() = FavoriteEntity(
     userId = userId,
     stationId = stationId
+)
+
+fun ReportErrorEntity.toDomain() = ReportError(
+    resId = resId,
+    userId = userId,
+    stationId = stationId,
+    chargerId = chargerId,
+    report = report,
+    description = description
+)
+
+fun ReportError.toDomain() = ReportErrorEntity(
+    resId = resId,
+    userId = userId,
+    stationId = stationId,
+    chargerId = chargerId,
+    report = report,
+    description = description
 )

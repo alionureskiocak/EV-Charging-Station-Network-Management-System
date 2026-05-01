@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.fse_project.data.local.database.entities.ChargerEntity
 import com.example.fse_project.data.local.database.entities.FavoriteEntity
+import com.example.fse_project.data.local.database.entities.ReportErrorEntity
 import com.example.fse_project.data.local.database.entities.ReservationEntity
 import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.data.local.database.entities.UserEntity
@@ -17,7 +18,7 @@ import com.example.fse_project.data.local.database.entities.WalletEntity
         ChargerEntity::class, ReservationEntity::class,
         StationEntity::class, UserEntity::class,
         VehicleEntity::class, WalletEntity::class,
-        FavoriteEntity::class],
+        FavoriteEntity::class, ReportErrorEntity::class],
     version = 1
 )
 abstract class AppDatabase : RoomDatabase() {
