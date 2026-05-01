@@ -218,11 +218,14 @@ class MainViewModel @Inject constructor(
         val user = _state.value.currentUser!!
         //val station = _state.value.currentStation!!
         val charger = _state.value.currentCharger!!
+        val consumedKwh = state.value.currentKwh
         viewModelScope.launch {
             reservation.status = ReservationStatus.COMPLETED
-            val newAmount = user.wallet.balance - _timerFlow.value/60*reservation.pricePerKwh
+            val totalCost = consumedKwh * reservation.pricePerKwh
+            val newAmount = user.wallet.balance - totalCost
             userRepo.updateWallet(user.id,newAmount)
             reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.COMPLETED)
+            reservationRepo.createReservation(reservation.copy(endTime = LocalDateTime.now()))
             stationRepo.updateChargerStatus(charger.id, ChargerStatus.AVAILABLE)
             _state.value = _state.value.copy(currentReservation = null)
         }
@@ -380,9 +383,16 @@ class MainViewModel @Inject constructor(
         val startSlot = _state.value.timeSlots.find { it.index == startIdx }
         val endSlot = _state.value.timeSlots.find { it.index == endIdx }
 
-        val now = LocalDate.now()
+        val now = LocalDateTime.now()
         if (startSlot != null && endSlot != null) {
-            val startTime = LocalDateTime.of(startSlot.date, LocalTime.of(startSlot.hour, 0))
+
+            val isCurrentSlot = startSlot.date == now.toLocalDate() && startSlot.hour == now.hour
+
+            val startTime = if (isCurrentSlot) {
+                now
+            } else {
+                LocalDateTime.of(startSlot.date, LocalTime.of(startSlot.hour, 0))
+            }
             val endTime = LocalDateTime.of(endSlot.date, LocalTime.of(endSlot.hour, 0)).plusHours(1)
 
             viewModelScope.launch {
@@ -445,10 +455,25 @@ class MainViewModel @Inject constructor(
                    completeReservation()
                     continue
                 }
-                //TODO AYNI SAAT İÇİNDE GEÇ REZERVASYON YAPILIRSA SAAT BAŞINDAN İTİBAREN PARAYI ÇEKİYOR
-                val diff = Duration.between(startTime, now).toSeconds()
-                _timerFlow.value = diff.toInt()
-                _state.update { it.copy(isChargingNow = true) }
+
+                val diffInSeconds = Duration.between(startTime, now).toSeconds()
+                _timerFlow.value = diffInSeconds.toInt()
+
+                val kwValue = when(res.charger.powerOutput) {
+                    PowerOutput.KW_11 -> 11.0
+                    PowerOutput.KW_22 -> 22.0
+                    PowerOutput.KW_50 -> 50.0
+                    PowerOutput.KW_150 -> 150.0
+                    PowerOutput.KW_300 -> 300.0
+                    else -> 0.0
+                }
+
+                val consumedKwh = (kwValue * diffInSeconds) / 3600.0
+
+                _state.update { it.copy(
+                    isChargingNow = true,
+                    currentKwh = consumedKwh
+                ) }
             }
         }
     }
@@ -636,6 +661,7 @@ data class UiState(
     val isLoadingRoute: Boolean = false,
     val routeError: String? = null,
     val showResCancelDialog: Boolean = false,
+    val currentKwh : Double = 0.0,
 
     val isChargingNow : Boolean = false,
 

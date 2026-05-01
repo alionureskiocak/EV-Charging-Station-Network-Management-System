@@ -149,6 +149,7 @@ fun MainScreen(
     val routeDuration = state.routeDuration
     val isLoadingRoute = state.isLoadingRoute
     val showResCancelDialog = state.showResCancelDialog
+    val consumedKwh = state.currentKwh
 
     val timer = viewModel.timerFlow.collectAsState()
 
@@ -376,7 +377,9 @@ fun MainScreen(
                         routeDistance = routeDistance,
                         routeDuration = routeDuration,
                         vehicle = vehicle,
-                        onCancelOrStopClick = { viewModel.changeCancelDialogStatus() }
+                        onCancelOrStopClick = { viewModel.changeCancelDialogStatus() },
+                        consumedKwh = consumedKwh,
+                        
                     )
                 } else {
                     FloatingSearchBar(
@@ -1218,6 +1221,7 @@ fun CheckPermission(onPermissionGranted: (Boolean) -> Unit) {
 fun ActiveReservationCard(
     currentReservation: Reservation,
     timerValue: Int,
+    consumedKwh: Double,
     routeDistance: String?,
     routeDuration: String?,
     vehicle: Vehicle?,
@@ -1308,13 +1312,16 @@ fun ActiveReservationCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Geçen Süre", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${timerValue / 60}dk ${timerValue % 60}sn", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("Tüketilen Enerji", style = MaterialTheme.typography.labelMedium)
+                        // String format ile 2 basamaklı gösterim: "0.45 kWh"
+                        Text("${String.format("%.2f", consumedKwh)} kWh", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     }
                     Box(modifier = Modifier.height(40.dp).width(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Toplam Tutar", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("₺${timerValue / 60 * currentReservation.pricePerKwh}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("Toplam Tutar", style = MaterialTheme.typography.labelMedium)
+                        // Gerçek tutar hesabı
+                        val cost = consumedKwh * currentReservation.pricePerKwh
+                        Text("₺${String.format("%.2f", cost)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }

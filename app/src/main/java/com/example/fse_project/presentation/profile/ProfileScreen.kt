@@ -51,15 +51,22 @@ fun ProfileScreen(
 
     if (showResCancelDialog) {
         AlertDialog(
-            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
             onDismissRequest = { viewModel.changeCancelDialogStatus() },
             title = { Text("Rezervasyon İptali") },
             text = { Text("Rezervasyonunuzu iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.") },
             confirmButton = {
                 Button(
-                    onClick = { viewModel.deleteReservation(currentReservation!!.id)
-                              viewModel.changeCancelDialogStatus()
-                              },
+                    onClick = {
+                        viewModel.deleteReservation(currentReservation!!.id)
+                        viewModel.changeCancelDialogStatus()
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
                     Text("İptal Et")
@@ -105,7 +112,9 @@ fun ProfileScreen(
         // 🔹 Rezervasyonlar Listesi
         if (reservations.isEmpty()) {
             // Ağırlık vererek sadece kalan boşluğu kaplamasını sağlıyoruz
-            EmptyStateView(modifier = Modifier.weight(1f).fillMaxWidth())
+            EmptyStateView(modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth())
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -131,7 +140,7 @@ fun ProfileScreen(
                     }
                 }
 
-                val otherRes = reservations.filter { it.status != ReservationStatus.ACTIVE }
+                val otherRes = reservations.filter { it.status != ReservationStatus.ACTIVE }.reversed()
                 if (otherRes.isNotEmpty()) {
                     item {
                         Text(
@@ -161,9 +170,17 @@ fun ProfileScreen(
                 .fillMaxWidth()
                 .padding(vertical = 16.dp),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error))
+            border = ButtonDefaults.outlinedButtonBorder.copy(
+                brush = androidx.compose.ui.graphics.SolidColor(
+                    MaterialTheme.colorScheme.error
+                )
+            )
         ) {
-            Icon(Icons.Default.Logout, contentDescription = "Çıkış", modifier = Modifier.size(20.dp))
+            Icon(
+                Icons.Default.Logout,
+                contentDescription = "Çıkış",
+                modifier = Modifier.size(20.dp)
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Çıkış Yap")
         }
@@ -200,7 +217,7 @@ fun WalletCard(balance: Double, onTopUpClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                     )
                     Text(
-                        text = "₺$balance", // Para birimi sembolünü kendi projenize göre ayarlayabilirsiniz
+                        text = "₺${"%.2f".format(balance)}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -228,10 +245,27 @@ fun ReservationCard(
 ) {
     // Statüye göre modern renk ve metin belirleme
     val (containerColor, statusColor, statusText) = when (res.status) {
-        ReservationStatus.ACTIVE -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Aktif") // Soft Yeşil
-        ReservationStatus.COMPLETED -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Tamamlandı")
-        ReservationStatus.CANCELLED -> Triple(Color(0xFFFFEBEE), Color(0xFFC62828), "İptal Edildi") // Soft Kırmızı
-        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Bilinmiyor")
+        ReservationStatus.ACTIVE -> Triple(
+            Color(0xFFE8F5E9),
+            Color(0xFF2E7D32),
+            "Aktif"
+        ) // Soft Yeşil
+        ReservationStatus.COMPLETED -> Triple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            "Tamamlandı"
+        )
+
+        ReservationStatus.CANCELLED -> Triple(
+            Color(0xFFFFEBEE),
+            Color(0xFFC62828),
+            "İptal Edildi"
+        ) // Soft Kırmızı
+        else -> Triple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            "Bilinmiyor"
+        )
     }
 
     Card(
@@ -275,18 +309,29 @@ fun ReservationCard(
 
             // 🔹 Bilgi Satırları
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                InfoChip(icon = Icons.Default.ChargingStation, text = "Şarj: ${res.charger.chargerType}")
-                InfoChip(icon = Icons.Default.AccessTime, text = "${res.startTime.toLocalTime()} - ${res.endTime.toLocalTime()}")
+                InfoChip(
+                    icon = Icons.Default.ChargingStation,
+                    text = "Şarj: ${res.charger.chargerType}"
+                )
+                val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                InfoChip(
+                    icon = Icons.Default.AccessTime,
+                    text = "${
+                        res.startTime.toLocalTime().format(timeFormatter)
+                    } - ${res.endTime.toLocalTime().format(timeFormatter)}"
+                )
             }
 
-            // 🔹 İptal Butonu (Sadece aktif rezervasyon ise ve şarj başlamadıysa)
             if (!isChargingNow && currentReservation == res && res.status == ReservationStatus.ACTIVE) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = onCancelClick,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
                 ) {
                     Text("Rezervasyonu İptal Et", fontWeight = FontWeight.SemiBold)
                 }
@@ -319,6 +364,7 @@ fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String
         )
     }
 }
+
 @Composable
 fun EmptyStateView(modifier: Modifier = Modifier) {
     Column(
@@ -347,6 +393,7 @@ fun EmptyStateView(modifier: Modifier = Modifier) {
         )
     }
 }
+
 @Composable
 fun WalletDialog(onClick: (Long) -> Unit, onDismiss: () -> Unit) {
     var amount by remember { mutableStateOf("") }

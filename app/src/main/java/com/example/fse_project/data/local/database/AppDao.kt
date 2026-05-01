@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import com.example.fse_project.data.local.database.entities.ChargerEntity
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.FavoriteEntity
@@ -149,7 +150,7 @@ interface AppDao {
 
     ///////////// RESERVATION ////////////////////////////
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertReservation(reservationEntity: ReservationEntity): Long
 
     @Query("DELETE FROM reservations WHERE id = :reservationId")
@@ -159,7 +160,7 @@ interface AppDao {
     suspend fun updateReservationStatus(resId: Long, status: ReservationStatus)
 
     @Transaction
-    @Query("SELECT * FROM reservations WHERE id = :reservationId")
+    @Query("SELECT * FROM reservations WHERE id = :reservationId ")
     suspend fun getReservationDetailsById(reservationId: Long): ReservationWithDetails
 
     @Transaction
