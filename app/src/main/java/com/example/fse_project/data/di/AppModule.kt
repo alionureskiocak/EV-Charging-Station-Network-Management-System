@@ -22,10 +22,12 @@ import com.example.fse_project.data.local.database.entities.VehicleEntity
 import com.example.fse_project.data.local.database.entities.WalletEntity
 import com.example.fse_project.data.remote.service.DirectionsApi
 import com.example.fse_project.data.repository.DirectionsRepositoryImpl
+import com.example.fse_project.data.repository.ReportRepositoryImpl
 import com.example.fse_project.data.repository.ReservationRepositoryImpl
 import com.example.fse_project.data.repository.StationRepositoryImpl
 import com.example.fse_project.data.repository.UserRepositoryImpl
 import com.example.fse_project.domain.repository.DirectionsRepository
+import com.example.fse_project.domain.repository.ReportRepository
 import com.example.fse_project.domain.repository.ReservationRepository
 import com.example.fse_project.domain.repository.StationRepository
 import com.example.fse_project.domain.repository.UserRepository
@@ -51,7 +53,7 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideDirectionsApi() : DirectionsApi{
+    fun provideDirectionsApi(): DirectionsApi {
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
@@ -65,7 +67,12 @@ object AppModule {
         return DirectionsRepositoryImpl(api)
     }
 
-    data class PrepopulatedStation(val name: String, val address: String, val lat: Double, val lng: Double)
+    data class PrepopulatedStation(
+        val name: String,
+        val address: String,
+        val lat: Double,
+        val lng: Double
+    )
 
     @Singleton
     @Provides
@@ -552,11 +559,12 @@ object AppModule {
                                 val connector = poolItem.third     // Örn: ConnectorType.CCS
 
                                 // 🔹 2. Güce göre tipi belirliyoruz (11 ve 22 AC, diğerleri DC)
-                                val type = if (power == PowerOutput.KW_11 || power == PowerOutput.KW_22) {
-                                    ChargerType.AC
-                                } else {
-                                    ChargerType.DC
-                                }
+                                val type =
+                                    if (power == PowerOutput.KW_11 || power == PowerOutput.KW_22) {
+                                        ChargerType.AC
+                                    } else {
+                                        ChargerType.DC
+                                    }
 
                                 // 🔹 3. Güce göre fiyatı belirliyoruz (Daha önce konuştuğumuz 2. seçenek - Granüler Fiyat)
                                 val basePrice = when (power) {
@@ -590,29 +598,34 @@ object AppModule {
             .build()
     }
 
-        @Singleton
-        @Provides
-        fun provideAppDao(db: AppDatabase) = db.appDao()
+    @Singleton
+    @Provides
+    fun provideAppDao(db: AppDatabase) = db.appDao()
 
-        @Singleton
-        @Provides
-        fun provideStationRepository(dao: AppDao): StationRepository = StationRepositoryImpl(dao)
+    @Singleton
+    @Provides
+    fun provideStationRepository(dao: AppDao): StationRepository = StationRepositoryImpl(dao)
 
-        @Singleton
-        @Provides
-        fun provideUserRepository(dao: AppDao): UserRepository = UserRepositoryImpl(dao)
+    @Singleton
+    @Provides
+    fun provideUserRepository(dao: AppDao): UserRepository = UserRepositoryImpl(dao)
 
-        @Singleton
-        @Provides
-        fun provideReservationRepository(dao: AppDao): ReservationRepository =
-            ReservationRepositoryImpl(dao)
+    @Singleton
+    @Provides
+    fun provideReservationRepository(dao: AppDao): ReservationRepository =
+        ReservationRepositoryImpl(dao)
 
-        @Singleton
-        @Provides
-        fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
-            return PreferenceDataStoreFactory.create {
-                context.preferencesDataStoreFile("users")
-            }
+    @Singleton
+    @Provides
+    fun provideReportRepository(dao: AppDao): ReportRepository =
+        ReportRepositoryImpl(dao)
+
+    @Singleton
+    @Provides
+    fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
+        return PreferenceDataStoreFactory.create {
+            context.preferencesDataStoreFile("users")
         }
     }
+}
 

@@ -63,6 +63,7 @@ class MainViewModel @Inject constructor(
         getUsers()
         observeStationsWithReservations()
         observeAllReservations()
+        observeAllReports()
         startBilling()
     }
 
@@ -154,6 +155,12 @@ class MainViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private fun observeAllReports(){
+        viewModelScope.launch {
+
         }
     }
 
