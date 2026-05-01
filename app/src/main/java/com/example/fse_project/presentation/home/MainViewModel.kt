@@ -7,12 +7,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fse_project.data.datastore.SessionManager
 import com.example.fse_project.data.local.database.entities.ChargerStatus
+import com.example.fse_project.data.local.database.entities.ConnectorType
+import com.example.fse_project.data.local.database.entities.PowerOutput
 import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.data.remote.model.Step
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Favorite
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
+import com.example.fse_project.domain.model.StationStatus
 import com.example.fse_project.domain.model.User
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.domain.repository.DirectionsRepository
@@ -194,9 +197,9 @@ class MainViewModel @Inject constructor(
                             usersVehicles = newState.usersVehicles,
                             favoriteStations = newState.favoriteStations, // 🔹 YENİ
                             currentReservation = newState.currentReservation,
-                            currentStation = newState.currentStation ?: old.currentStation,
-                            currentCharger = newState.currentCharger ?: old.currentCharger,
-                            currentVehicle = newState.currentVehicle ?: old.currentVehicle,
+                            currentStation = old.currentStation ?: newState.currentStation,
+                            currentCharger = old.currentCharger ?: newState.currentCharger,
+                            currentVehicle = old.currentVehicle ?: newState.currentVehicle,
                         )
 
                         val res = newState.currentReservation
@@ -304,6 +307,10 @@ class MainViewModel @Inject constructor(
 
     fun isStationFavorite(stationId : Long) : Boolean{
         return _state.value.favoriteStations.any { it.id == stationId }
+    }
+
+    fun onFilterSelected(choice: FilterChoice){
+        _state.update { it.copy(selectedFilter = choice, isStationsFiltered = true) }
     }
 
     fun deleteReservation(resId: Long) {
@@ -594,6 +601,10 @@ class MainViewModel @Inject constructor(
     fun changeCancelDialogStatus() {
         _state.update { it.copy(showResCancelDialog = !_state.value.showResCancelDialog) }
     }
+
+    fun calculateDistance(){
+        
+    }
 }
 
 data class UiState(
@@ -601,6 +612,8 @@ data class UiState(
     val allStations: List<Station> = emptyList(),
     val favoriteStations : List<Station> = emptyList(),
     val isStationsFavorite : Boolean = false,
+    val isStationsFiltered : Boolean = false,
+    val selectedFilter : FilterChoice? = null,
     val allReservations: List<Reservation> = emptyList(),
     val usersReservations: List<Reservation> = emptyList(),
     val timeSlots: List<TimeSlot> = emptyList(),
@@ -631,17 +644,41 @@ data class UiState(
 ) {
     val displayedStations: List<Station>
         get() {
-            // 1. ADIM: Ekrana her zaman "allStations" (renkleri hesaplanmış canlı liste) basılacak.
-            // Eğer favorilerdeysek, allStations'ı filtreleyip sadece favori ID'sine sahip olanları bırakıyoruz.
+
             val baseList = if (isStationsFavorite) {
                 allStations.filter { station ->
                     favoriteStations.any { fav -> fav.id == station.id }
                 }
-            } else {
+            }
+            else if (isStationsFiltered){
+                when(selectedFilter){
+                    FilterChoice.ALL -> allStations
+                    FilterChoice.AVAILABLE -> allStations.filter { it.chargers.any{
+                        it.chargerStatus == ChargerStatus.AVAILABLE && it.connectorType == currentVehicle?.connectorType
+                    } }
+                    FilterChoice._11KW -> allStations.filter { it.chargers.any{
+                        it.chargerStatus == ChargerStatus.AVAILABLE && it.powerOutput == PowerOutput.KW_11 && it.connectorType == currentVehicle?.connectorType
+                    } }
+                    FilterChoice._22KW -> allStations.filter { it.chargers.any{
+                    it.chargerStatus == ChargerStatus.AVAILABLE && it.powerOutput == PowerOutput.KW_22 && it.connectorType == currentVehicle?.connectorType
+                } }
+                    FilterChoice._50KW ->  allStations.filter { it.chargers.any{
+                    it.chargerStatus == ChargerStatus.AVAILABLE && it.powerOutput == PowerOutput.KW_50 && it.connectorType == currentVehicle?.connectorType
+                } }
+                    FilterChoice._150KW -> allStations.filter { it.chargers.any{
+                    it.chargerStatus == ChargerStatus.AVAILABLE && it.powerOutput == PowerOutput.KW_150 && it.connectorType == currentVehicle?.connectorType
+                } }
+                    FilterChoice._300KW -> allStations.filter { it.chargers.any{
+                    it.chargerStatus == ChargerStatus.AVAILABLE && it.powerOutput == PowerOutput.KW_300 && it.connectorType == currentVehicle?.connectorType
+                } }
+                    null -> allStations
+                }
+            }
+
+            else {
                 allStations
             }
 
-            // 2. ADIM: Arama metni varsa listeyi isme göre daraltıyoruz
             return if (searchText.isBlank()) {
                 baseList
             } else {

@@ -1,10 +1,7 @@
 package com.example.fse_project.presentation.home
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.location.Location
 import android.os.Build
 import android.widget.Toast
@@ -12,15 +9,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,9 +36,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -45,13 +48,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ChargingStation
 import androidx.compose.material.icons.filled.ElectricCar
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -66,8 +70,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -106,13 +108,10 @@ import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.presentation.navigation.Screen
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.MapsInitializer
-import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
-import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.PolyUtil
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
@@ -166,6 +165,7 @@ fun MainScreen(
     var isSheetOpen by remember { mutableStateOf(false) }
     var showCarDialog by remember { mutableStateOf(false) }
     var showCarAddDialog by remember { mutableStateOf(false) }
+    var isFilterMenuOpen by remember { mutableStateOf(false) }
 
     var searchText by remember { mutableStateOf("") }
 
@@ -236,12 +236,12 @@ fun MainScreen(
         }
     }
 
-    // Harita ayarları (MapStyle dahil etmek istersen alttaki yorum satırını açarsın)
+    // Harita ayarları
     val properties by remember(hasLocationPermission) {
         mutableStateOf(
             MapProperties(
                 isMyLocationEnabled = hasLocationPermission,
-                // mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style) // Özel JSON stili eklersen burayı aç
+                // mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
             )
         )
     }
@@ -304,10 +304,10 @@ fun MainScreen(
                 properties = properties,
                 uiSettings = uiSettings,
                 contentPadding = PaddingValues(
-                    top = paddingValues.calculateTopPadding() + 80.dp, // Arama çubuğu Google logolarını vs ezmesin
+                    top = paddingValues.calculateTopPadding() + 80.dp,
                     bottom = paddingValues.calculateBottomPadding() + 80.dp
                 ),
-                onMapClick = { /* Boşluk tıklandığında */ }
+                onMapClick = { isFilterMenuOpen = false } // Haritaya tıklanınca filtre menüsünü kapat
             ) {
                 if (pathPoints.isNotEmpty()) {
                     Polyline(
@@ -349,7 +349,6 @@ fun MainScreen(
             }
 
             // 2. KATMAN: YÜZEN ARAYÜZ (FLOATING UI) ELEMANLARI
-
             if (isLoadingRoute) {
                 Box(
                     modifier = Modifier
@@ -385,39 +384,47 @@ fun MainScreen(
                         onSearchTextChanged = {
                             searchText = it
                             viewModel.onStationSearch(searchText)
-                                              },
-                        onProfileClick = {navController.navigate(Screen.ProfileScreen.route)}
+                        },
+                        onProfileClick = { navController.navigate(Screen.ProfileScreen.route) }
                     )
                 }
             }
 
-            // 🔹 SAĞ ALT KISIM: Konumuma Git Butonu (FAB)
-            FloatingActionButton(
-                onClick = { /* TODO: Kamerayı konuma kaydır */ },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = paddingValues.calculateBottomPadding() + 96.dp, end = 16.dp), // Filtre menüsünün üstünde durur
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary,
-                shape = CircleShape,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
-            ) {
-                Icon(imageVector = Icons.Default.MyLocation, contentDescription = "Konumumu Bul")
-            }
 
             // 🔹 ALT ORTA KISIM: Favoriler ve Filtre Menüsü
-            FloatingMapActions(
-                onFavoritesClick = { viewModel.onFavoritesClick() },
-                onFilterClick = { /* TODO: Filtre ekranını aç */ },
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = paddingValues.calculateBottomPadding() + 24.dp),
-                isStationsFavorite = isStationsFavorite
-            )
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Yukarı doğru açılan filtre barı
+                AnimatedVisibility(
+                    visible = isFilterMenuOpen,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FilterOptionsBar(
+                            onFilterSelect = { filter ->
+                                // TODO: Seçilen filtreyi ViewModel'e gönder
+                                viewModel.onFilterSelected(filter)
+                            },
+                            selectedFilter = state.selectedFilter
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+
+                FloatingMapActions(
+                    onFavoritesClick = { viewModel.onFavoritesClick() },
+                    onFilterClick = { isFilterMenuOpen = !isFilterMenuOpen },
+                    isStationsFavorite = isStationsFavorite
+                )
+            }
         }
     }
 
-    // 3. KATMAN: BOTTOM SHEET
     // 3. KATMAN: BOTTOM SHEET
     if (isSheetOpen) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
@@ -466,7 +473,7 @@ fun MainScreen(
                             station = station,
                             vehicle = vehicle,
                             usersVehicles = usersVehicles,
-                            isFavorite = isFavorite, // YENİ
+                            isFavorite = isFavorite,
                             onFavoriteToggle = {
                                 viewModel.toggleFavorite()
                             },
@@ -548,7 +555,8 @@ fun FloatingSearchBar(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                    .clickable { onProfileClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -627,6 +635,51 @@ fun FloatingMapActions(
     }
 }
 
+@Composable
+fun FilterOptionsBar(
+    selectedFilter : FilterChoice?,
+    onFilterSelect: (FilterChoice) -> Unit
+) {
+    val filters = FilterChoice.values()
+
+    Surface(
+        modifier = Modifier.shadow(8.dp, RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        LazyRow(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            items(filters) { filter ->
+                    val isSelected = selectedFilter == filter
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            .clickable {
+                                onFilterSelect(filter)
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = filter.choice,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                }
+            }
+        }
+    }
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChargerChoiceScreen(
@@ -634,8 +687,8 @@ fun ChargerChoiceScreen(
     station: Station?,
     vehicle: Vehicle?,
     usersVehicles: List<Vehicle>,
-    isFavorite: Boolean, // YENİ
-    onFavoriteToggle: () -> Unit, // YENİ
+    isFavorite: Boolean,
+    onFavoriteToggle: () -> Unit,
     onChargerClick: (Long) -> Unit,
     onVehicleAdd: () -> Unit,
     onVehicleSelect: (Vehicle) -> Unit
@@ -651,14 +704,15 @@ fun ChargerChoiceScreen(
                 .fillMaxWidth()
                 .padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically // Ortalamak için
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 station?.let {
                     Text(
                         text = it.name,
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -669,7 +723,6 @@ fun ChargerChoiceScreen(
                 }
             }
 
-            // Kalp (Favori) Butonu
             IconButton(
                 onClick = onFavoriteToggle,
                 modifier = Modifier
@@ -696,16 +749,22 @@ fun ChargerChoiceScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(chargers) { item ->
-                    val alpha = if (item.clickable) 1f else 0.5f
+                    val alpha = if (item.clickable) 1f else 0.6f
+
                     ElevatedCard(
                         onClick = { onChargerClick(item.charger.id) },
                         enabled = item.clickable,
-                        shape = RoundedCornerShape(20.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (item.clickable) 4.dp else 0.dp),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = if (item.clickable) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        shape = RoundedCornerShape(24.dp),
+                        elevation = CardDefaults.elevatedCardElevation(
+                            defaultElevation = if (item.clickable) 6.dp else 0.dp
                         ),
-                        modifier = Modifier.fillMaxWidth().alpha(alpha)
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = if (item.clickable) MaterialTheme.colorScheme.surface
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .alpha(alpha)
                     ) {
                         Column(
                             modifier = Modifier
@@ -713,22 +772,23 @@ fun ChargerChoiceScreen(
                                 .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            // 🟢 Durum Noktası
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(12.dp)
+                                        .size(10.dp)
                                         .clip(CircleShape)
-                                        .background(item.statusColor)
+                                        //.background(item.color)
                                 )
                             }
 
                             Image(
                                 painter = painterResource(R.drawable.charger),
                                 contentDescription = null,
-                                modifier = Modifier.size(56.dp)
+                                modifier = Modifier.size(64.dp)
                             )
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -736,72 +796,86 @@ fun ChargerChoiceScreen(
                             Text(
                                 text = item.charger.chargerName,
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-
-                            Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
                                 text = item.charger.connectorType.name.replace("_", " "),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Text(
-                                text = "${item.charger.powerOutput.name.replace("KW_", "")} kW",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = item.clickableText!!,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = item.statusColor,
-                                fontWeight = FontWeight.Bold
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
                             )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // ⚡ Teknik Detaylar (Güç ve Fiyat)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.Start,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                ChargerDetailRow(
+                                    icon = Icons.Default.Bolt,
+                                    label = "${item.charger.powerOutput.name.replace("KW_", "")} kW"
+                                )
+                                ChargerDetailRow(
+                                    icon = Icons.Default.Payments,
+                                    label = "₺${item.charger.pricePerKwh}/kWh"
+                                )
+                            }
                         }
                     }
                 }
             }
         } else {
-            Text(
-                text = "Rezervasyon için araba seçmeniz gerekmektedir. Arabalarınızdan birini seçebilir veya yeni araba oluşturabilirsiniz.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            // Araç seçilmemişse gösterilecek boş durum
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 32.dp),
+                contentAlignment = Alignment.Center
             ) {
-                if (usersVehicles.isNotEmpty()) {
-                    usersVehicles.forEach { v ->
-                        OutlinedButton(
-                            onClick = { onVehicleSelect(v) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(16.dp)
-                        ) {
-                            Text(
-                                text = "${v.brand} ${v.model}",
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-                    }
-                }
-
-                FilledTonalButton(
-                    onClick = onVehicleAdd,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(16.dp)
-                ) {
-                    Text("Yeni Araba Ekle")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.charger), // Varsa bir placeholder ikon
+                        contentDescription = null,
+                        modifier = Modifier.size(80.dp).alpha(0.2f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Lütfen önce bir araç seçin.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ChargerDetailRow(icon: ImageVector, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -1265,4 +1339,14 @@ fun ActiveReservationCard(
             }
         }
     }
+}
+
+enum class FilterChoice(val choice : String){
+    ALL("Tümü"),
+    AVAILABLE("Sadece Uygunlar"),
+    _11KW("11KW"),
+    _22KW("22KW"),
+    _50KW("50KW"),
+    _150KW("150KW"),
+    _300KW("300KW")
 }

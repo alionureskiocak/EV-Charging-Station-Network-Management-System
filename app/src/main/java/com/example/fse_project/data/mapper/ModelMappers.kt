@@ -74,7 +74,8 @@ fun ChargerEntity.toDomain(): Charger = Charger(
     chargerType = chargerType,
     powerOutput = powerOutput,
     connectorType = connectorType,
-    chargerStatus = chargerStatus
+    chargerStatus = chargerStatus,
+    pricePerKwh = pricePerKwh
 )
 
 fun Charger.toEntity(): ChargerEntity = ChargerEntity(
@@ -84,7 +85,8 @@ fun Charger.toEntity(): ChargerEntity = ChargerEntity(
     chargerType = chargerType,
     powerOutput = powerOutput,
     connectorType = connectorType,
-    chargerStatus = chargerStatus
+    chargerStatus = chargerStatus,
+    pricePerKwh = pricePerKwh
 )
 
 // --- Station Mapper ---

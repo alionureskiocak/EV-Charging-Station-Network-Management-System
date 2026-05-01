@@ -17,33 +17,36 @@ import androidx.room.PrimaryKey
 )
 data class ChargerEntity(
     @PrimaryKey(autoGenerate = true)
-    val id : Long,
-    val stationOwnerId : Long, //station
-    val chargerName : String,
+    val id: Long,
+    val stationOwnerId: Long, //station
+    val chargerName: String,
+    val pricePerKwh : Double,
     val chargerType: ChargerType,
     val powerOutput: PowerOutput,
     val connectorType: ConnectorType,
-    val chargerStatus: ChargerStatus
+    val chargerStatus: ChargerStatus,
 )
 
-enum class ChargerType{
+enum class ChargerType {
     AC,
     DC
 }
 
-enum class PowerOutput{
+enum class PowerOutput {
+    KW_11,
     KW_22,
     KW_50,
-    KW_150
+    KW_150,
+    KW_300
 }
 
-enum class ConnectorType{
+enum class ConnectorType {
     TYPE_2,
     CCS,
     CHADEMO
 }
 
-enum class ChargerStatus{
+enum class ChargerStatus {
     AVAILABLE,
     OCCUPIED,
     FULL,

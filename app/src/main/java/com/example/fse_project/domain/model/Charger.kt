@@ -9,6 +9,7 @@ data class Charger(
     val id : Long,
     val stationOwnerId : Long, //station
     val chargerName : String,
+    val pricePerKwh : Double,
     val chargerType: ChargerType,
     val powerOutput: PowerOutput,
     val connectorType: ConnectorType,
