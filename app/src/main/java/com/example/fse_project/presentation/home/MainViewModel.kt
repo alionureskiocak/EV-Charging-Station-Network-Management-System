@@ -225,9 +225,15 @@ class MainViewModel @Inject constructor(
             val newAmount = user.wallet.balance - totalCost
             userRepo.updateWallet(user.id,newAmount)
             reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.COMPLETED)
-            reservationRepo.createReservation(reservation.copy(endTime = LocalDateTime.now()))
+            val finalReservation = reservation.copy(
+                status = ReservationStatus.COMPLETED,
+                endTime = LocalDateTime.now(),
+                actualKwh = consumedKwh,
+                totalAmount = totalCost
+            )
+            reservationRepo.createReservation(finalReservation)
             stationRepo.updateChargerStatus(charger.id, ChargerStatus.AVAILABLE)
-            _state.value = _state.value.copy(currentReservation = null)
+            _state.value = _state.value.copy(currentReservation = null,showReceipt = true, lastCompletedReservation = finalReservation)
         }
         stopBilling()
     }
@@ -601,6 +607,10 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    fun closeReceiptScreen(){
+        _state.update { it.copy(showReceipt = false, lastCompletedReservation = null) }
+    }
+
     fun clearRoute() {
         _state.update {
             it.copy(
@@ -664,6 +674,8 @@ data class UiState(
     val currentKwh : Double = 0.0,
 
     val isChargingNow : Boolean = false,
+    val showReceipt : Boolean = false,
+    val lastCompletedReservation : Reservation? = null,
 
     val userLocation: LatLng? = null,
     val searchText: String = ""

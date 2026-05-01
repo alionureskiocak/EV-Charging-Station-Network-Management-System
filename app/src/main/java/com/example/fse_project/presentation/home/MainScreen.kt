@@ -19,6 +19,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -56,6 +57,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -87,7 +89,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -95,6 +99,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -150,6 +155,7 @@ fun MainScreen(
     val isLoadingRoute = state.isLoadingRoute
     val showResCancelDialog = state.showResCancelDialog
     val consumedKwh = state.currentKwh
+    val showReceipt = state.showReceipt
 
     val timer = viewModel.timerFlow.collectAsState()
 
@@ -265,7 +271,10 @@ fun MainScreen(
                 ) { Text(if (timer.value == 0) "İptal Et" else "Durdur") }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.changeCancelDialogStatus() }) { Text("Vazgeç") }
+                TextButton(onClick = {
+                    viewModel.changeCancelDialogStatus()
+                    //
+                }) { Text("Vazgeç") }
             }
         )
     }
@@ -316,6 +325,13 @@ fun MainScreen(
                         color = MaterialTheme.colorScheme.primary,
                         width = 14f,
                         geodesic = true
+                    )
+                }
+
+                if (state.showReceipt && state.lastCompletedReservation != null) {
+                    ReceiptDialog(
+                        reservation = state.lastCompletedReservation!!,
+                        onClose = { viewModel.closeReceiptScreen() }
                     )
                 }
 
@@ -379,7 +395,7 @@ fun MainScreen(
                         vehicle = vehicle,
                         onCancelOrStopClick = { viewModel.changeCancelDialogStatus() },
                         consumedKwh = consumedKwh,
-                        
+
                     )
                 } else {
                     FloatingSearchBar(
@@ -1345,6 +1361,157 @@ fun ActiveReservationCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun ReceiptDialog(
+    reservation: Reservation, // ViewModel'den gelen son tamamlanan rezervasyon
+    onClose: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.padding(24.dp),
+        confirmButton = {
+            TextButton(
+                onClick = onClose,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Kapat", fontWeight = FontWeight.Bold)
+            }
+        },
+        title = {
+            Text(
+                text = "İşlem Özeti",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            // 🔹 Fiş Kağıdı Efekti
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF9F9F9)) // Kağıt beyazı
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // İstasyon Bilgisi
+                Text(
+                    text = reservation.station.name.uppercase(),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = reservation.station.address,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                DashedDivider() // Kesikli Çizgi
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Detaylar (Fiş formatı: Sol etiket, sağ değer)
+                ReceiptRow("Tarih", reservation.endTime.toLocalDate().toString())
+                ReceiptRow("Bitiş Saati", reservation.endTime.toLocalTime().toString().take(5))
+                ReceiptRow("Araç Plaka", reservation.vehicle.licensePlate)
+                ReceiptRow("Cihaz", reservation.charger.chargerName)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Enerji ve Birim Fiyat
+                ReceiptRow("Birim Fiyat", "₺${"%.2f".format(reservation.pricePerKwh)}")
+                ReceiptRow("Tüketim", "${"%.2f".format(reservation.actualKwh)} kWh")
+
+                Spacer(modifier = Modifier.height(12.dp))
+                DashedDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 💰 TOPLAM TUTAR
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "TOPLAM",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        text = "₺${"%.2f".format(reservation.totalAmount)}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Barkod Efekti (Opsiyonel görsel dokunuş)
+                Icon(
+                    imageVector = Icons.Default.QrCode,
+                    contentDescription = null,
+                    modifier = Modifier.size(60.dp).alpha(0.3f)
+                )
+                Text(
+                    text = "Teşekkür Ederiz",
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.alpha(0.5f).padding(top = 8.dp)
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun ReceiptRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.DarkGray,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
+fun DashedDivider() {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+    ) {
+        val dashWidth = 10f
+        val dashGap = 10f
+
+        drawLine(
+            color = Color.LightGray,
+            start = Offset(0f, 0f),
+            end = Offset(size.width, 0f),
+            strokeWidth = 2f, // 🔹 style yerine direkt strokeWidth
+            pathEffect = PathEffect.dashPathEffect( // 🔹 style yerine direkt pathEffect
+                intervals = floatArrayOf(dashWidth, dashGap),
+                phase = 0f
+            )
+        )
     }
 }
 

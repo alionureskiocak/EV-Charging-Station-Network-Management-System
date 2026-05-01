@@ -12,5 +12,7 @@ data class Reservation(
     val startTime : LocalDateTime,
     val endTime : LocalDateTime,
     val pricePerKwh : Double,
-    var status : ReservationStatus
+    var status : ReservationStatus,
+    val actualKwh: Double = 0.0,
+    val totalAmount: Double = 0.0
 )

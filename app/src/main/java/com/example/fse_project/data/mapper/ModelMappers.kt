@@ -127,7 +127,9 @@ fun Reservation.toEntity(): ReservationEntity = ReservationEntity(
     startTime = startTime,
     endTime = endTime,
     pricePerKwh = pricePerKwh,
-    status = status
+    status = status,
+    actualKwh = actualKwh,
+    totalAmount = totalAmount
 )
 
 
@@ -141,7 +143,9 @@ fun ReservationWithDetails.toDomain() : Reservation{
         startTime = this.reservation.startTime,
         endTime = this.reservation.endTime,
         pricePerKwh = this.reservation.pricePerKwh,
-        status = this.reservation.status
+        status = this.reservation.status,
+        actualKwh = this.reservation.actualKwh,
+        totalAmount = this.reservation.totalAmount
     )
 }
 

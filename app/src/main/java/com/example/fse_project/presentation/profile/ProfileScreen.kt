@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -243,29 +244,11 @@ fun ReservationCard(
     currentReservation: Reservation?,
     onCancelClick: () -> Unit
 ) {
-    // Statüye göre modern renk ve metin belirleme
     val (containerColor, statusColor, statusText) = when (res.status) {
-        ReservationStatus.ACTIVE -> Triple(
-            Color(0xFFE8F5E9),
-            Color(0xFF2E7D32),
-            "Aktif"
-        ) // Soft Yeşil
-        ReservationStatus.COMPLETED -> Triple(
-            MaterialTheme.colorScheme.surfaceVariant,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            "Tamamlandı"
-        )
-
-        ReservationStatus.CANCELLED -> Triple(
-            Color(0xFFFFEBEE),
-            Color(0xFFC62828),
-            "İptal Edildi"
-        ) // Soft Kırmızı
-        else -> Triple(
-            MaterialTheme.colorScheme.surfaceVariant,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            "Bilinmiyor"
-        )
+        ReservationStatus.ACTIVE -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Aktif")
+        ReservationStatus.COMPLETED -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Tamamlandı")
+        ReservationStatus.CANCELLED -> Triple(Color(0xFFFFEBEE), Color(0xFFC62828), "İptal Edildi")
+        else -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Bilinmiyor")
     }
 
     Card(
@@ -275,7 +258,7 @@ fun ReservationCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // 🔹 Üst Kısım: İstasyon Adı ve Statü Etiketi
+            // 🔹 Üst Kısım: İstasyon Adı ve Statü
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -289,7 +272,6 @@ fun ReservationCard(
                     modifier = Modifier.weight(1f)
                 )
 
-                // Statü Chip'i
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -307,21 +289,47 @@ fun ReservationCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 🔹 Bilgi Satırları
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            // 🔹 Temel Bilgiler (Tip ve Zaman)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 InfoChip(
                     icon = Icons.Default.ChargingStation,
-                    text = "Şarj: ${res.charger.chargerType}"
+                    text = "Cihaz: ${res.charger.chargerName}"
                 )
                 val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
                 InfoChip(
                     icon = Icons.Default.AccessTime,
-                    text = "${
-                        res.startTime.toLocalTime().format(timeFormatter)
-                    } - ${res.endTime.toLocalTime().format(timeFormatter)}"
+                    text = "${res.startTime.toLocalTime().format(timeFormatter)} - ${res.endTime.toLocalTime().format(timeFormatter)}"
                 )
             }
 
+            // 🔹 TAMAMLANAN REZERVASYONLAR İÇİN EK BİLGİLER
+            if (res.status == ReservationStatus.COMPLETED) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Enerji Tüketimi (kWh)
+                    InfoChip(
+                        icon = Icons.Default.Bolt,
+                        text = "${"%.2f".format(res.actualKwh)} kWh",
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                    // Toplam Tutar (₺)
+                    InfoChip(
+                        icon = Icons.Default.Payments,
+                        text = "₺${"%.2f".format(res.totalAmount)}",
+                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                        contentColor = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+
+            // İptal Butonu (Sadece Aktif ve Şarj Başlamamışken)
             if (!isChargingNow && currentReservation == res && res.status == ReservationStatus.ACTIVE) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
@@ -339,13 +347,17 @@ fun ReservationCard(
         }
     }
 }
-
 @Composable
-fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+fun InfoChip(
+    icon: ImageVector,
+    text: String,
+    containerColor: Color = Color.Black.copy(alpha = 0.05f),
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color.Black.copy(alpha = 0.05f))
+            .background(containerColor)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -353,14 +365,14 @@ fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = contentColor
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium
+            color = contentColor,
+            fontWeight = FontWeight.Bold
         )
     }
 }

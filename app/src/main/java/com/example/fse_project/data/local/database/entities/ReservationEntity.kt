@@ -40,7 +40,9 @@ data class ReservationEntity(
     val startTime : LocalDateTime,
     val endTime : LocalDateTime,
     val pricePerKwh : Double,
-    val status : ReservationStatus
+    val status : ReservationStatus,
+    val actualKwh: Double = 0.0,
+    val totalAmount: Double = 0.0
 )
 
 enum class ReservationStatus{
