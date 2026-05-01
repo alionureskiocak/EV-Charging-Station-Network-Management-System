@@ -1,10 +1,11 @@
 package com.example.fse_project.data.local.database.entities
 
 import androidx.room.Entity
+import androidx.room.PrimaryKey
 
 @Entity(tableName = "reports")
 data class ReportErrorEntity(
-    val resId : Long,
+    @PrimaryKey val resId : Long,
     val userId : Long,
     val stationId : Long,
     val chargerId : Long,

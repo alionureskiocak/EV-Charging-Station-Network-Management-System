@@ -1,7 +1,9 @@
 package com.example.fse_project.presentation.home
 
+import android.health.connect.datatypes.ExerciseRoute.Location
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,12 +15,14 @@ import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.data.remote.model.Step
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Favorite
+import com.example.fse_project.domain.model.ReportError
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.StationStatus
 import com.example.fse_project.domain.model.User
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.domain.repository.DirectionsRepository
+import com.example.fse_project.domain.repository.ReportRepository
 import com.example.fse_project.domain.repository.ReservationRepository
 import com.example.fse_project.domain.repository.StationRepository
 import com.example.fse_project.domain.repository.UserRepository
@@ -48,6 +52,7 @@ class MainViewModel @Inject constructor(
     private val reservationRepo: ReservationRepository,
     private val sessionManager: SessionManager,
     private val directionsRepo: DirectionsRepository,
+    private val reportRepo : ReportRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -160,7 +165,9 @@ class MainViewModel @Inject constructor(
 
     private fun observeAllReports(){
         viewModelScope.launch {
-
+            reportRepo.getAllReports().collect { reports ->
+                _state.update { it.copy(reports = reports) }
+            }
         }
     }
 
@@ -644,8 +651,14 @@ class MainViewModel @Inject constructor(
         _state.update { it.copy(showResCancelDialog = !_state.value.showResCancelDialog) }
     }
 
-    fun calculateDistance(){
-        
+    fun calculateDistance(start: LatLng, end: LatLng): Float {
+        val results = FloatArray(1)
+        android.location.Location.distanceBetween(
+            start.latitude, start.longitude,
+            end.latitude, end.longitude,
+            results
+        )
+        return results[0]
     }
 }
 
@@ -658,6 +671,7 @@ data class UiState(
     val selectedFilter : FilterChoice? = null,
     val allReservations: List<Reservation> = emptyList(),
     val usersReservations: List<Reservation> = emptyList(),
+    val reports : List<ReportError> = emptyList(),
     val timeSlots: List<TimeSlot> = emptyList(),
     val restrictedTimeSlots: List<TimeSlot> = emptyList(),
     val usersVehicles: List<Vehicle> = emptyList(),
@@ -685,7 +699,8 @@ data class UiState(
     val lastCompletedReservation : Reservation? = null,
 
     val userLocation: LatLng? = null,
-    val searchText: String = ""
+    val searchText: String = "",
+
 ) {
     val displayedStations: List<Station>
         get() {
@@ -695,7 +710,7 @@ data class UiState(
                     favoriteStations.any { fav -> fav.id == station.id }
                 }
             }
-            else if (isStationsFiltered){
+            else if (isStationsFiltered){""
                 when(selectedFilter){
                     FilterChoice.ALL -> allStations
                     FilterChoice.AVAILABLE -> allStations.filter { it.chargers.any{
@@ -729,5 +744,25 @@ data class UiState(
             } else {
                 baseList.filter { it.name.contains(searchText, ignoreCase = true) }
             }
+        }
+    val closestAvailableStations : List<Pair<Station, Float>>
+        get() {
+           return if(userLocation == null){
+                emptyList()
+           }  else{
+               allStations.map { station ->
+                   val results = FloatArray(1)
+                   android.location.Location.distanceBetween(
+                       userLocation.latitude, userLocation.longitude,
+                       station.latitude, station.longitude,
+                       results
+                   )
+                   val distance = results[0]
+                   station to distance
+
+               }.sortedBy {
+                   it.second
+               }
+           }
         }
 }

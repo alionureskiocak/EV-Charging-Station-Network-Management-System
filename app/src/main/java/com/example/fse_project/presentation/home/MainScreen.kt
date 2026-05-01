@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -47,6 +48,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Bolt
@@ -55,6 +58,8 @@ import androidx.compose.material.icons.filled.ElectricCar
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.QrCode
@@ -157,6 +162,12 @@ fun MainScreen(
     val consumedKwh = state.currentKwh
     val showReceipt = state.showReceipt
 
+    val closestAvailableStations = state.closestAvailableStations
+
+    LaunchedEffect(closestAvailableStations) {
+        println(closestAvailableStations)
+    }
+
     val timer = viewModel.timerFlow.collectAsState()
 
     var hasLocationPermission by remember { mutableStateOf(false) }
@@ -173,6 +184,8 @@ fun MainScreen(
     var showCarDialog by remember { mutableStateOf(false) }
     var showCarAddDialog by remember { mutableStateOf(false) }
     var isFilterMenuOpen by remember { mutableStateOf(false) }
+
+    var isNearbyListOpen by remember { mutableStateOf(false) }
 
     var searchText by remember { mutableStateOf("") }
 
@@ -364,7 +377,22 @@ fun MainScreen(
                     )
                 }
             }
-
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(bottom = 100.dp) // Alttaki filtre butonlarına çarpmaması için
+            ) {
+                NearbyStationsPanel(
+                    isVisible = isNearbyListOpen,
+                    stations = state.closestAvailableStations, // 1. adımda oluşturduğumuz sıralı liste
+                    onToggle = { isNearbyListOpen = !isNearbyListOpen },
+                    onStationClick = { stationId ->
+                        viewModel.setCurrentStation(stationId)
+                        isSheetOpen = true // Alt sayfayı aç (Marker'a tıklanmış gibi)
+                        isNearbyListOpen = false // Seçimden sonra listeyi kapat
+                    }
+                )
+            }
             // 2. KATMAN: YÜZEN ARAYÜZ (FLOATING UI) ELEMANLARI
             if (isLoadingRoute) {
                 Box(
@@ -1512,6 +1540,96 @@ fun DashedDivider() {
                 phase = 0f
             )
         )
+    }
+}
+
+@Composable
+fun NearbyStationsPanel(
+    isVisible: Boolean,
+    stations: List<Pair<Station, Float>>,
+    onStationClick: (Long) -> Unit,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxHeight(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Tetikleyici Buton (Yan duran küçük bir bar veya ikon)
+        Surface(
+            onClick = onToggle,
+            shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.shadow(4.dp, RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+        ) {
+            Icon(
+                imageVector = if (isVisible) Icons.Default.KeyboardArrowRight else Icons.Default.FormatListBulleted,
+                contentDescription = null,
+                modifier = Modifier.padding(8.dp).size(24.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+
+        // Animasyonlu Liste
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+        ) {
+            Surface(
+                modifier = Modifier
+                    .width(250.dp)
+                    .fillMaxHeight(0.6f) // Ekranın %60'ını kaplasın
+                    .shadow(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "En Yakın İstasyonlar",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(stations) { (st, distance) ->
+                            StationListMember(
+                                name = st.name,
+                                distance = distance,
+                                onClick = { onStationClick(st.id) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StationListMember(name: String, distance: Float, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(
+                    text = if (distance > 1000) "%.1f km".format(distance / 1000) else "%.0f m".format(distance),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+        }
     }
 }
 
