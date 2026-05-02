@@ -228,6 +228,7 @@ fun MainScreen(
         }
     }
 
+
     // Konum Güncelleme Döngüsü
     LaunchedEffect(Unit) {
         if (hasLocationPermission) {
@@ -260,6 +261,7 @@ fun MainScreen(
                 }
             }
         }
+        if (currentReservation == null) viewModel.clearRoute()
     }
 
     // Harita ayarları
