@@ -49,7 +49,7 @@ interface AppDao {
 
     /////////////// VEHICLE //////////////////////////
 
-    @Insert
+    @Upsert
     suspend fun insertVehicle(vehicleEntity: VehicleEntity): Long
 
     @Query("DELETE FROM vehicles WHERE id = :vehicleId")
@@ -153,6 +153,9 @@ interface AppDao {
 
     @Insert
     suspend fun insertReport(report : ReportErrorEntity) : Long
+
+    @Query("SELECT * FROM reports")
+    fun getReportsByUser(userId : Long) : Flow<List<ReportErrorEntity>>
 
     @Query("SELECT * FROM reports")
     fun getAllReports() : Flow<List<ReportErrorEntity>>

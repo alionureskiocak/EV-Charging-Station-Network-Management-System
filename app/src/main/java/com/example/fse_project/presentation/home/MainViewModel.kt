@@ -197,7 +197,7 @@ class MainViewModel @Inject constructor(
                             currentUser = user,
                             usersReservations = reservations,
                             usersVehicles = vehicles,
-                            favoriteStations = favorites, // 🔹 YENİ: Favoriler State'e yazıldı
+                            favoriteStations = favorites,
                             currentReservation = reservations.firstOrNull { it.status == ReservationStatus.ACTIVE },
                             currentCharger = reservations.lastOrNull()?.charger,
                             currentStation =  reservations.lastOrNull()?.station,
@@ -211,7 +211,7 @@ class MainViewModel @Inject constructor(
                             currentUser = newState.currentUser,
                             usersReservations = newState.usersReservations,
                             usersVehicles = newState.usersVehicles,
-                            favoriteStations = newState.favoriteStations, // 🔹 YENİ
+                            favoriteStations = newState.favoriteStations,
                             currentReservation = newState.currentReservation,
                             currentStation = old.currentStation ?: newState.currentStation,
                             currentCharger = old.currentCharger ?: newState.currentCharger,
@@ -220,7 +220,7 @@ class MainViewModel @Inject constructor(
 
                         val res = newState.currentReservation
                         val now = LocalDateTime.now()
-                        if (res != null && res.status == ReservationStatus.ACTIVE && now.isAfter(res.startTime) && now.isBefore(res.endTime)) {
+                        if (res != null && res.status == ReservationStatus.ACTIVE) {
                             startBilling()
                         }
                         updatedState
@@ -229,30 +229,6 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun completeReservation(){
-        val reservation = _state.value.currentReservation!!
-        val user = _state.value.currentUser!!
-        //val station = _state.value.currentStation!!
-        val charger = _state.value.currentCharger!!
-        val consumedKwh = state.value.currentKwh
-        viewModelScope.launch {
-            reservation.status = ReservationStatus.COMPLETED
-            val totalCost = consumedKwh * reservation.pricePerKwh
-            val newAmount = user.wallet.balance - totalCost
-            userRepo.updateWallet(user.id,newAmount)
-            reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.COMPLETED)
-            val finalReservation = reservation.copy(
-                status = ReservationStatus.COMPLETED,
-                endTime = LocalDateTime.now(),
-                actualKwh = consumedKwh,
-                totalAmount = totalCost
-            )
-            reservationRepo.createReservation(finalReservation)
-            stationRepo.updateChargerStatus(charger.id, ChargerStatus.AVAILABLE)
-            _state.value = _state.value.copy(currentReservation = null,showReceipt = true, lastCompletedReservation = finalReservation)
-        }
-        stopBilling()
-    }
 
     fun getUsers() {
         viewModelScope.launch {
@@ -458,54 +434,139 @@ class MainViewModel @Inject constructor(
     val timerFlow = _timerFlow.asStateFlow()
 
     fun startBilling() {
-
         if (job?.isActive == true) return
         job = viewModelScope.launch {
             while (true) {
-                delay(1000)
-                val res = _state.value.currentReservation ?: continue
-                val startTime = res.startTime
+                val res = _state.value.currentReservation ?: break
+                val vehicle = _state.value.currentVehicle ?: break
                 val now = LocalDateTime.now()
 
-
-                if (now.isBefore(startTime)) {
-                    _timerFlow.value = 0
-                    continue
-                }
-
+                // 1. DURUM: Süre bitti (Otomatik tamamlama)
                 if (now.isAfter(res.endTime)) {
-                   completeReservation()
-                    continue
+                    val finalKwh = calculateConsumedKwh(res.startTime, res.endTime, res.charger.powerOutput, vehicle.capacity, vehicle.currentKwh)
+                    _state.update { it.copy(currentKwh = finalKwh) }
+                    completeReservation()
+                    break
                 }
 
-                val diffInSeconds = Duration.between(startTime, now).toSeconds()
-                _timerFlow.value = diffInSeconds.toInt()
+                // 2. DURUM: Rezervasyon saati henüz gelmedi (Bekleme modu)
+                if (now.isBefore(res.startTime)) {
+                    _timerFlow.value = 0
+                    _state.update { it.copy(isChargingNow = false, currentKwh = 0.0) }
+                }
+                // 3. DURUM: Şarj şu an aktif (Sayaç çalışır)
+                else {
+                    val currentKwh = calculateConsumedKwh(res.startTime, now, res.charger.powerOutput, vehicle.capacity, vehicle.currentKwh)
+                    val diffInSeconds = Duration.between(res.startTime, now).toSeconds()
 
-                val kwValue = when(res.charger.powerOutput) {
-                    PowerOutput.KW_11 -> 11.0
-                    PowerOutput.KW_22 -> 22.0
-                    PowerOutput.KW_50 -> 50.0
-                    PowerOutput.KW_150 -> 150.0
-                    PowerOutput.KW_300 -> 300.0
-                    else -> 0.0
+                    _timerFlow.value = diffInSeconds.toInt()
+                    _state.update { it.copy(isChargingNow = true, currentKwh = currentKwh) }
                 }
 
-                val consumedKwh = (kwValue * diffInSeconds) / 3600.0
-
-                _state.update { it.copy(
-                    isChargingNow = true,
-                    currentKwh = consumedKwh
-                ) }
+                delay(1000)
             }
+        }
+    }
+
+    private fun calculateConsumedKwh(startTime: LocalDateTime, endTime: LocalDateTime, powerOutput: PowerOutput, vehicleCapacity: Double, vehicleCurrentKwh: Double): Double {
+        val diffInSeconds = Duration.between(startTime, endTime).toSeconds().coerceAtLeast(0)
+
+        val kwValue = when(powerOutput) {
+            PowerOutput.KW_11 -> 11.0
+            PowerOutput.KW_22 -> 22.0
+            PowerOutput.KW_50 -> 50.0
+            PowerOutput.KW_150 -> 150.0
+            PowerOutput.KW_300 -> 300.0
+            else -> 0.0
+        }
+
+        val calculatedKwh = (kwValue * diffInSeconds) / 3600.0
+        val maxCanReceive = vehicleCapacity - vehicleCurrentKwh
+
+        return if (calculatedKwh >= maxCanReceive) maxCanReceive else calculatedKwh
+    }
+
+    fun completeReservation() {
+        val reservation = _state.value.currentReservation ?: return
+        val user = _state.value.currentUser ?: return
+        val vehicle = _state.value.currentVehicle ?: return
+
+        val now = LocalDateTime.now()
+        val actualEndTime = if (now.isAfter(reservation.endTime)) reservation.endTime else now
+
+        // 1. Önce net tüketimi hesapla
+        val finalKwh = calculateConsumedKwh(
+            reservation.startTime,
+            actualEndTime,
+            reservation.charger.powerOutput,
+            vehicle.capacity,
+            vehicle.currentKwh
+        )
+
+        viewModelScope.launch {
+            // 2. ÖNCE state'i bu nihai değerle güncelle ki stopBilling doğru değeri görsün
+            _state.update { it.copy(currentKwh = finalKwh) }
+
+            val totalCost = finalKwh * reservation.pricePerKwh
+            val newAmount = user.wallet.balance - totalCost
+
+            userRepo.updateWallet(user.id, newAmount)
+            reservationRepo.updateReservationStatus(reservation.id, ReservationStatus.COMPLETED)
+
+            val finalRecord = reservation.copy(
+                status = ReservationStatus.COMPLETED,
+                endTime = actualEndTime,
+                actualKwh = finalKwh,
+                totalAmount = totalCost
+            )
+
+            reservationRepo.createReservation(finalRecord)
+            stationRepo.updateChargerStatus(reservation.charger.id, ChargerStatus.AVAILABLE)
+
+            // 3. Makbuzu göster ama kWh'ı burada SIFIRLAMA!
+            _state.update { it.copy(
+                currentReservation = null,
+                showReceipt = true,
+                lastCompletedReservation = finalRecord
+            ) }
+
+            // 4. Şimdi durdur ve kaydet (Sıfırlama stopBilling içinde olacak)
+            stopBilling()
         }
     }
 
     fun stopBilling() {
         job?.cancel()
-        _state.update { it.copy(isChargingNow = false) }
-        _timerFlow.value = 0
-    }
 
+        viewModelScope.launch {
+            var vehicleToUpdate: Vehicle? = null
+
+            _state.update { currentState ->
+                val consumed = currentState.currentKwh
+                val vehicle = currentState.currentVehicle
+
+                if (vehicle != null) {
+                    // Upsert'in çalışması için ID'yi koruyarak kopyalıyoruz
+                    vehicleToUpdate = vehicle.copy(
+                        currentKwh = vehicle.currentKwh + consumed
+                    )
+                }
+
+                currentState.copy(
+                    isChargingNow = false,
+                    currentVehicle = vehicleToUpdate ?: vehicle,
+                    currentKwh = 0.0 // SIFIRLAMA İŞLEMİ EN SON BURADA OLMALI
+                )
+            }
+
+            // 5. KRİTİK: _state.value yerine direkt oluşturduğumuz değişkeni gönderiyoruz
+            vehicleToUpdate?.let {
+                userRepo.createVehicle(it) // Repo'daki Upsert artık güncel ID ve kWh ile çalışacak
+            }
+
+            _timerFlow.value = 0
+        }
+    }
     fun getReservationTimeSlots(chargerId: Long) {
         val referenceDate: LocalDateTime = LocalDateTime.now()
         val today = referenceDate.toLocalDate()
@@ -544,7 +605,6 @@ class MainViewModel @Inject constructor(
             )
         }
 
-        // Yarının slotları (toplam 24'e tamamla)
         val remainingSlotCount = 24 - slots.size
         for (hour in 0 until remainingSlotCount) {
             val slotStart = LocalDateTime.of(tomorrow, LocalTime.of(hour, 0))
@@ -566,6 +626,11 @@ class MainViewModel @Inject constructor(
         }
 
         _state.update { it.copy(timeSlots = slots) }
+    }
+
+    fun canUserMakeReservation() : Boolean{
+        if (_state.value.currentUser == null) return false
+        return _state.value.currentUser!!.wallet.balance < 0
     }
 
     fun logOut() {

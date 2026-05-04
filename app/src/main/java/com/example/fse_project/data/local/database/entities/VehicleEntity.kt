@@ -17,11 +17,12 @@ import androidx.room.PrimaryKey
 )
 data class VehicleEntity(
     @PrimaryKey(autoGenerate = true)
-    val id : Long,
-    val ownerId : Long, //user
-    val brand : String,
-    val model : String,
-    val capacity : Int,
+    val id: Long,
+    val ownerId: Long, //user
+    val brand: String,
+    val model: String,
+    val capacity: Double,
     val connectorType: ConnectorType,
-    val licensePlate : String,
+    val licensePlate: String,
+    val currentKwh: Double
 )

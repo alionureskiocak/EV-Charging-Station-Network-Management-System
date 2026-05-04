@@ -41,7 +41,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.lang.Math.random
 import javax.inject.Provider
 import javax.inject.Singleton
 import kotlin.math.roundToInt
@@ -106,9 +105,10 @@ object AppModule {
                             ownerId = newUserId1,
                             brand = "Tesla",
                             model = "Model Y",
-                            capacity = 75,
+                            capacity = 75.0,
                             connectorType = ConnectorType.CCS,
-                            licensePlate = "35 ALI 35"
+                            licensePlate = "35 ALI 35",
+                            currentKwh = (10..30).random().toDouble(),
                         )
                         dao.insertVehicle(defaultVehicle1)
 
@@ -126,10 +126,12 @@ object AppModule {
                             ownerId = newUserId2,
                             brand = "Tesla",
                             model = "Model X",
-                            capacity = 50,
+                            capacity = 50.0,
                             connectorType = ConnectorType.TYPE_2,
-                            licensePlate = "35 CGR 35"
-                        )
+                            licensePlate = "35 CGR 35",
+                            currentKwh = (10..30).random().toDouble(),
+
+                            )
                         dao.insertVehicle(defaultVehicle2)
 
                         val defaultUser3 = UserEntity(
@@ -146,10 +148,11 @@ object AppModule {
                             ownerId = newUserId3,
                             brand = "TOGG",
                             model = "T10X",
-                            capacity = 90,
+                            capacity = 90.0,
                             connectorType = ConnectorType.CHADEMO,
-                            licensePlate = "35 FRK 35"
-                        )
+                            licensePlate = "35 FRK 35",
+                            currentKwh = (10..30).random().toDouble(),
+                            )
                         dao.insertVehicle(defaultVehicle3)
 
                         val defaultUser4 = UserEntity(
@@ -166,10 +169,12 @@ object AppModule {
                             ownerId = newUserId4,
                             brand = "TOGG",
                             model = "T10F",
-                            capacity = 80,
+                            capacity = 80.0,
                             connectorType = ConnectorType.TYPE_2,
-                            licensePlate = "35 OZM 35"
-                        )
+                            licensePlate = "35 OZM 35",
+                            currentKwh = (10..30).random().toDouble(),
+
+                            )
                         dao.insertVehicle(defaultVehicle4)
 
                         val stationsData = listOf(

@@ -55,7 +55,8 @@ fun VehicleEntity.toDomain(): Vehicle = Vehicle(
     model = model,
     capacity = capacity,
     connectorType = connectorType,
-    licensePlate = licensePlate
+    licensePlate = licensePlate,
+    currentKwh = currentKwh,
 )
 
 fun Vehicle.toEntity(): VehicleEntity = VehicleEntity(
@@ -65,7 +66,8 @@ fun Vehicle.toEntity(): VehicleEntity = VehicleEntity(
     model = model,
     capacity = capacity,
     connectorType = connectorType,
-    licensePlate = licensePlate
+    licensePlate = licensePlate,
+    currentKwh = currentKwh,
 )
 
 // --- Charger Mapper ---
