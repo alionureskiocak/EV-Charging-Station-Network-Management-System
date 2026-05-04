@@ -217,12 +217,18 @@ fun ReportCard(report: ReportError, stationName: String) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Başlık ve Hata Türü Etiketi
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(stationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    text = stationName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
 
                 Box(
                     modifier = Modifier
@@ -230,23 +236,26 @@ fun ReportCard(report: ReportError, stationName: String) {
                         .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(report.report.text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = report.report.text,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
+
             if (report.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(report.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Info, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("İnceleniyor", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = report.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
 }
-
 @Composable
 fun WalletCard(balance: Double, onTopUpClick: () -> Unit) {
     Card(
