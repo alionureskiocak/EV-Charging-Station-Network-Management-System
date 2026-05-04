@@ -156,6 +156,7 @@ fun MainScreen(
     val currentReservation = state.currentReservation
     val userLocation = state.userLocation
 
+
     val charger = state.currentCharger
     val routePolyline = state.routePolyline
     val routeDistance = state.routeDistance

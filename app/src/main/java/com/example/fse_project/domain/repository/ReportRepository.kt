@@ -10,4 +10,5 @@ interface ReportRepository {
 
     suspend fun insertReport(report : ReportError) : Long
     fun getAllReports() : Flow<List<ReportError>>
+    fun getReportsByUser(userId : Long) : Flow<List<ReportError>>
 }

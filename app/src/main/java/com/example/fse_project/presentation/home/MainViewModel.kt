@@ -185,19 +185,22 @@ class MainViewModel @Inject constructor(
                     val reservationFlow = reservationRepo.getAllReservationsByUserId(userId)
                     val vehicleFlow = userRepo.getVehiclesByUserId(userId)
                     val favoriteFlow = stationRepo.getFavoritesByUser(userId)
+                    val reportFlow = reportRepo.getReportsByUser(userId)
 
                     combine(
                         userFlow,
                         reservationFlow,
                         vehicleFlow,
-                        favoriteFlow // 🔹 YENİ
-                    ) { user, reservations, vehicles, favorites ->
+                        favoriteFlow,
+                        reportFlow
+                    ) { user, reservations, vehicles, favorites, reports ->
 
                         UiState(
                             currentUser = user,
                             usersReservations = reservations,
                             usersVehicles = vehicles,
                             favoriteStations = favorites,
+                            userReports = reports,
                             currentReservation = reservations.firstOrNull { it.status == ReservationStatus.ACTIVE },
                             currentCharger = reservations.lastOrNull()?.charger,
                             currentStation =  reservations.lastOrNull()?.station,
@@ -751,6 +754,7 @@ data class UiState(
     val allUsers: List<User> = emptyList(),
     val allStations: List<Station> = emptyList(),
     val favoriteStations : List<Station> = emptyList(),
+    val userReports : List<ReportError> = emptyList(),
     val isStationsFavorite : Boolean = false,
     val isStationsFiltered : Boolean = false,
     val selectedFilter : FilterChoice? = null,

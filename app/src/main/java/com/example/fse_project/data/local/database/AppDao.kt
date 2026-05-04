@@ -154,7 +154,7 @@ interface AppDao {
     @Insert
     suspend fun insertReport(report : ReportErrorEntity) : Long
 
-    @Query("SELECT * FROM reports")
+    @Query("SELECT * FROM reports WHERE id = :userId")
     fun getReportsByUser(userId : Long) : Flow<List<ReportErrorEntity>>
 
     @Query("SELECT * FROM reports")

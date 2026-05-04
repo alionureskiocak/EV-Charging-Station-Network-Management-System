@@ -19,6 +19,10 @@ class ReportRepositoryImpl @Inject constructor(
         return dao.insertReport(report.toDomain())
     }
 
+    override fun getReportsByUser(userId: Long): Flow<List<ReportError>> {
+        return dao.getReportsByUser(userId).map { it.map { it.toDomain() } }
+    }
+
     override fun getAllReports(): Flow<List<ReportError>> {
         return dao.getAllReports().map { it.map { it.toDomain() } }
     }

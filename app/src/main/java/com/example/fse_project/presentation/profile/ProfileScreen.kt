@@ -10,22 +10,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.domain.model.Reservation
+import com.example.fse_project.domain.model.ReportError
 import com.example.fse_project.presentation.home.MainViewModel
+import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
@@ -34,15 +36,20 @@ fun ProfileScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-    val isChargingNow = state.isChargingNow
     val user = state.currentUser
     val wallet = user?.wallet
     val reservations = state.usersReservations
+    val reports = state.reports
+    val allStations = state.allStations
     val currentReservation = state.currentReservation
+    val isChargingNow = state.isChargingNow
     val showResCancelDialog = state.showResCancelDialog
 
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Rezervasyonlar", "Raporlarım")
     var showWalletDialog by remember { mutableStateOf(false) }
 
+    // --- Dialogs ---
     if (showWalletDialog) {
         WalletDialog(
             onClick = { viewModel.updateWallet(wallet!!.balance + it) },
@@ -52,138 +59,190 @@ fun ProfileScreen(
 
     if (showResCancelDialog) {
         AlertDialog(
-            icon = {
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
-                )
-            },
+            icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
             onDismissRequest = { viewModel.changeCancelDialogStatus() },
             title = { Text("Rezervasyon İptali") },
-            text = { Text("Rezervasyonunuzu iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz.") },
+            text = { Text("Rezervasyonunuzu iptal etmek istediğinize emin misiniz?") },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteReservation(currentReservation!!.id)
+                        currentReservation?.let { viewModel.deleteReservation(it.id) }
                         viewModel.changeCancelDialogStatus()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("İptal Et")
-                }
+                ) { Text("İptal Et") }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.changeCancelDialogStatus() }) {
-                    Text("Vazgeç")
-                }
+                TextButton(onClick = { viewModel.changeCancelDialogStatus() }) { Text("Vazgeç") }
             }
         )
     }
 
+    // --- Main Layout ---
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 16.dp)
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 🔹 Başlık
         Text(
             text = "Profilim",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Start
+            fontWeight = FontWeight.Bold
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 🔹 Cüzdan Kartı
         wallet?.let {
-            WalletCard(balance = it.balance) {
-                showWalletDialog = true
+            WalletCard(balance = it.balance) { showWalletDialog = true }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 🔹 Tab Selector
+        TabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.primary,
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            divider = {}
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // 🔹 Content Area
+        Box(modifier = Modifier.weight(1f)) {
+            if (selectedTabIndex == 0) {
+                if (reservations.isEmpty()) {
+                    EmptyStateView(modifier = Modifier.fillMaxSize())
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 12.dp)
+                    ) {
+                        currentReservation?.let { activeRes ->
+                            item {
+                                SectionTitle("Aktif Rezervasyon")
+                                ReservationCard(activeRes, isChargingNow, currentReservation) {
+                                    viewModel.changeCancelDialogStatus()
+                                }
+                            }
+                        }
 
-        // 🔹 Rezervasyonlar Listesi
-        if (reservations.isEmpty()) {
-            // Ağırlık vererek sadece kalan boşluğu kaplamasını sağlıyoruz
-            EmptyStateView(modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth())
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                // Aktif Rezervasyon
-                currentReservation?.let { activeRes ->
-                    item {
-                        Text(
-                            text = "Aktif Rezervasyon",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 8.dp, top = 8.dp)
-                        )
-                        ReservationCard(
-                            res = activeRes,
-                            isChargingNow = isChargingNow,
-                            currentReservation = currentReservation
-                        ) {
-                            viewModel.changeCancelDialogStatus()
+                        val pastRes = reservations.filter { it.status != ReservationStatus.ACTIVE }.reversed()
+                        if (pastRes.isNotEmpty()) {
+                            item { SectionTitle("Geçmiş Rezervasyonlar") }
+                            items(pastRes) { res ->
+                                ReservationCard(res, isChargingNow, currentReservation) {
+                                    viewModel.changeCancelDialogStatus()
+                                }
+                            }
                         }
                     }
                 }
-
-                val otherRes = reservations.filter { it.status != ReservationStatus.ACTIVE }.reversed()
-                if (otherRes.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Geçmiş Rezervasyonlar",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
-                        )
+            } else {
+                if (reports.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.Report, null, Modifier.size(64.dp), MaterialTheme.colorScheme.outline)
+                        Text("Henüz bir sorun bildirmediniz.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    items(otherRes) { res ->
-                        ReservationCard(
-                            res = res,
-                            isChargingNow = isChargingNow,
-                            currentReservation = currentReservation
-                        ) {
-                            viewModel.changeCancelDialogStatus()
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 12.dp)
+                    ) {
+                        items(reports.reversed()) { report ->
+                            val stationName = allStations.find { it.id == report.stationId }?.name ?: "Bilinmeyen İstasyon"
+                            ReportCard(report, stationName)
                         }
                     }
                 }
             }
         }
 
-        // 🔹 Çıkış Yap Butonu
+        // 🔹 Logout Button
         OutlinedButton(
             onClick = { viewModel.logOut() },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            border = ButtonDefaults.outlinedButtonBorder.copy(
-                brush = androidx.compose.ui.graphics.SolidColor(
-                    MaterialTheme.colorScheme.error
-                )
-            )
+            border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(MaterialTheme.colorScheme.error))
         ) {
-            Icon(
-                Icons.Default.Logout,
-                contentDescription = "Çıkış",
-                modifier = Modifier.size(20.dp)
-            )
+            Icon(Icons.Default.Logout, null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text("Çıkış Yap")
+        }
+    }
+}
+
+@Composable
+fun SectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(vertical = 8.dp)
+    )
+}
+
+@Composable
+fun ReportCard(report: ReportError, stationName: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(stationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(report.report.text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            }
+            if (report.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(report.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Info, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("İnceleniyor", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+            }
         }
     }
 }
@@ -193,57 +252,24 @@ fun WalletCard(balance: Double, onTopUpClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
+            modifier = Modifier.fillMaxWidth().padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Outlined.AccountBalanceWallet,
-                    contentDescription = "Cüzdan",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(40.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = "Mevcut Bakiye",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        text = "₺${"%.2f".format(balance)}",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
+            Column {
+                Text("Mevcut Bakiye", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
+                Text("₺${"%.2f".format(balance)}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             }
-
-            Button(
-                onClick = onTopUpClick,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("Yükle")
-            }
+            Button(onClick = onTopUpClick, shape = RoundedCornerShape(12.dp)) { Text("Yükle") }
         }
     }
 }
 
 @Composable
-fun ReservationCard(
-    res: Reservation,
-    isChargingNow: Boolean,
-    currentReservation: Reservation?,
-    onCancelClick: () -> Unit
-) {
+fun ReservationCard(res: Reservation, isChargingNow: Boolean, currentRes: Reservation?, onCancel: () -> Unit) {
     val (containerColor, statusColor, statusText) = when (res.status) {
         ReservationStatus.ACTIVE -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), "Aktif")
         ReservationStatus.COMPLETED -> Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Tamamlandı")
@@ -254,92 +280,35 @@ fun ReservationCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // 🔹 Üst Kısım: İstasyon Adı ve Statü
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Text(
-                    text = res.station.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(statusColor.copy(alpha = 0.1f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = statusColor
-                    )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(res.station.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Box(Modifier.clip(RoundedCornerShape(8.dp)).background(statusColor.copy(alpha = 0.1f)).padding(8.dp, 4.dp)) {
+                    Text(statusText, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = statusColor)
                 }
             }
-
             Spacer(modifier = Modifier.height(12.dp))
-
-            // 🔹 Temel Bilgiler (Tip ve Zaman)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                InfoChip(
-                    icon = Icons.Default.ChargingStation,
-                    text = "Cihaz: ${res.charger.chargerName}"
-                )
-                val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-                InfoChip(
-                    icon = Icons.Default.AccessTime,
-                    text = "${res.startTime.toLocalTime().format(timeFormatter)} - ${res.endTime.toLocalTime().format(timeFormatter)}"
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                InfoChip(Icons.Default.ChargingStation, res.charger.chargerName)
+                val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
+                InfoChip(Icons.Default.AccessTime, "${res.startTime.format(timeFmt)} - ${res.endTime.format(timeFmt)}")
             }
-
-            // 🔹 TAMAMLANAN REZERVASYONLAR İÇİN EK BİLGİLER
             if (res.status == ReservationStatus.COMPLETED) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Enerji Tüketimi (kWh)
-                    InfoChip(
-                        icon = Icons.Default.Bolt,
-                        text = "${"%.2f".format(res.actualKwh)} kWh",
-                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        contentColor = MaterialTheme.colorScheme.primary
-                    )
-                    // Toplam Tutar (₺)
-                    InfoChip(
-                        icon = Icons.Default.Payments,
-                        text = "₺${"%.2f".format(res.totalAmount)}",
-                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
-                        contentColor = MaterialTheme.colorScheme.secondary
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    InfoChip(Icons.Default.Bolt, "${"%.2f".format(res.actualKwh)} kWh", MaterialTheme.colorScheme.primary.copy(0.1f), MaterialTheme.colorScheme.primary)
+                    InfoChip(Icons.Default.Payments, "₺${"%.2f".format(res.totalAmount)}", MaterialTheme.colorScheme.secondary.copy(0.1f), MaterialTheme.colorScheme.secondary)
                 }
             }
-
-            // İptal Butonu (Sadece Aktif ve Şarj Başlamamışken)
-            if (!isChargingNow && currentReservation == res && res.status == ReservationStatus.ACTIVE) {
+            if (!isChargingNow && currentRes?.id == res.id && res.status == ReservationStatus.ACTIVE) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = onCancelClick,
+                    onClick = onCancel,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
                 ) {
                     Text("Rezervasyonu İptal Et", fontWeight = FontWeight.SemiBold)
                 }
@@ -347,108 +316,53 @@ fun ReservationCard(
         }
     }
 }
+
 @Composable
-fun InfoChip(
-    icon: ImageVector,
-    text: String,
-    containerColor: Color = Color.Black.copy(alpha = 0.05f),
-    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
-) {
+fun InfoChip(icon: ImageVector, text: String, containerColor: Color = Color.Black.copy(0.05f), contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(containerColor)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(containerColor).padding(8.dp, 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = contentColor
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = contentColor,
-            fontWeight = FontWeight.Bold
-        )
+        Icon(icon, null, Modifier.size(16.dp), tint = contentColor)
+        Spacer(Modifier.width(6.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall, color = contentColor, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 fun EmptyStateView(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier, // fillMaxSize() yerine parametreden gelen modifier'ı kullanıyoruz
+        modifier = modifier,
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Outlined.EventBusy,
-            contentDescription = "Boş",
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.outline
-        )
+        Icon(Icons.Outlined.EventBusy, null, Modifier.size(80.dp), MaterialTheme.colorScheme.outline)
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Henüz bir rezervasyonunuz yok.",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = "Yeni bir şarj istasyonu rezerve ederek başlayabilirsiniz.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.outline,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)
-        )
+        Text("Henüz bir rezervasyonunuz yok.", style = MaterialTheme.typography.titleMedium)
     }
 }
 
 @Composable
 fun WalletDialog(onClick: (Long) -> Unit, onDismiss: () -> Unit) {
     var amount by remember { mutableStateOf("") }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Bakiye Yükle", fontWeight = FontWeight.Bold) },
         text = {
-            Column {
-                Text(
-                    "Cüzdanınıza yüklemek istediğiniz tutarı giriniz.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { if (it.all { char -> char.isDigit() }) amount = it },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    label = { Text("Tutar (₺)") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            OutlinedTextField(
+                value = amount,
+                onValueChange = { if (it.all { c -> c.isDigit() }) amount = it },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                label = { Text("Tutar (₺)") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    if (amount.isNotEmpty()) {
-                        onClick(amount.toLong())
-                        onDismiss()
-                    }
-                },
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Yükle")
-            }
+            Button(onClick = { if (amount.isNotEmpty()) { onClick(amount.toLong()); onDismiss() } }) { Text("Yükle") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Vazgeç")
-            }
+            TextButton(onClick = onDismiss) { Text("Vazgeç") }
         }
     )
 }
