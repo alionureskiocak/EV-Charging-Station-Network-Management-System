@@ -102,6 +102,7 @@ interface AppDao {
     )
     suspend fun getStationByChargerId(chargerId: Long): StationEntity
 
+
     /////////////// FAVORITES //////////////////////////
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)

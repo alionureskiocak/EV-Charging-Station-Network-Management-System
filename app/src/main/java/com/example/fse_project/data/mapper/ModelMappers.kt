@@ -136,13 +136,30 @@ fun Reservation.toEntity(): ReservationEntity = ReservationEntity(
     totalAmount = totalAmount
 )
 
-
+/*
 fun ReservationWithDetails.toDomain() : Reservation{
     return Reservation(
         id = this.reservation.id,
         user = this.user.toDomain(),
         vehicle = this.vehicle.toDomain(),
         station = this.station.toDomain(),
+        charger = this.charger.toDomain(),
+        startTime = this.reservation.startTime,
+        endTime = this.reservation.endTime,
+        pricePerKwh = this.reservation.pricePerKwh,
+        status = this.reservation.status,
+        actualKwh = this.reservation.actualKwh,
+        totalAmount = this.reservation.totalAmount
+    )
+}
+*/
+// SONRA (düzeltilmiş)
+fun ReservationWithDetails.toDomain() : Reservation {
+    return Reservation(
+        id = this.reservation.id,
+        user = this.user.toDomain(),
+        vehicle = this.vehicle.toDomain(),
+        station = this.station.toDomain(), // rezervasyondaki station zaten charger'sız kalabilir
         charger = this.charger.toDomain(),
         startTime = this.reservation.startTime,
         endTime = this.reservation.endTime,

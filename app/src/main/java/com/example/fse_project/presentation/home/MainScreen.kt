@@ -49,9 +49,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.ChargingStation
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ElectricCar
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -165,6 +164,7 @@ fun MainScreen(
     val showResCancelDialog = state.showResCancelDialog
     val consumedKwh = state.currentKwh
     val showReceipt = state.showReceipt
+    val showCancelMsg = state.showCancelMessage
 
     var showReportDialog by remember { mutableStateOf(false) }
 
@@ -183,7 +183,6 @@ fun MainScreen(
 
     var isNearbyListOpen by remember { mutableStateOf(false) }
 
-    var searchText by remember { mutableStateOf("") }
 
     val izmir = LatLng(38.4237, 27.1428)
     val cameraPositionState = rememberCameraPositionState {
@@ -208,6 +207,26 @@ fun MainScreen(
                 durationMs = 1000
             )
         }
+    }
+
+    if (state.showCancelMessage) {
+        AlertDialog(
+            onDismissRequest = { viewModel.closeCancelMessage() },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Rezervasyon İptal Edildi") },
+            text = { Text(state.cancelMessage) },
+            confirmButton = {
+                Button(onClick = { viewModel.closeCancelMessage() }) {
+                    Text("Tamam")
+                }
+            }
+        )
     }
 
     LaunchedEffect(currentUser, usersVehicles) {
@@ -457,12 +476,11 @@ fun MainScreen(
                         )
                 } else {
                     FloatingSearchBar(
-                        searchText = searchText,
+                        searchText = state.searchText,
                         onSearchTextChanged = {
-                            searchText = it
-                            viewModel.onStationSearch(searchText)
+                            viewModel.onStationSearch(it)
                         },
-                        onProfileClick = { navController.navigate(Screen.ProfileScreen.route) }
+                        onSearchTextClear = { viewModel.clearSearchText() }
                     )
                 }
             }
@@ -615,7 +633,7 @@ fun MainScreen(
 fun FloatingSearchBar(
     searchText: String,
     onSearchTextChanged: (String) -> Unit,
-    onProfileClick: () -> Unit
+    onSearchTextClear: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -661,11 +679,11 @@ fun FloatingSearchBar(
                     .size(36.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                    .clickable { onProfileClick() },
+                    .clickable { onSearchTextClear() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.AccountCircle,
+                    imageVector = Icons.Default.Close,
                     contentDescription = "Profil",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)

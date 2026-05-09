@@ -4,14 +4,11 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -19,9 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
@@ -29,15 +24,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import com.example.fse_project.presentation.admin.AdminScreen
+import com.example.fse_project.presentation.admin.AdminViewModel
 import com.example.fse_project.presentation.navigation.Screen
 import com.example.fse_project.presentation.login.LoginScreen
 import com.example.fse_project.presentation.home.MainScreen
 import com.example.fse_project.presentation.home.MainViewModel
 import com.example.fse_project.presentation.navigation.AppViewModel
 import com.example.fse_project.presentation.navigation.AuthState
-import com.example.fse_project.presentation.navigation.BottomNavigationBarItem
 import com.example.fse_project.presentation.profile.ProfileScreen
 import dagger.hilt.android.AndroidEntryPoint
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.S)
@@ -45,7 +42,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-
             val navController = rememberNavController()
             val appViewModel: AppViewModel = hiltViewModel()
             val authState by appViewModel.authState.collectAsState()
@@ -53,23 +49,25 @@ class MainActivity : ComponentActivity() {
             val backStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = backStackEntry?.destination?.route
 
-            LaunchedEffect(authState) {
+            val isAdmin = appViewModel.isUserAdmin.collectAsState()
 
-                println("AUTH STATE: $authState")
-
+            LaunchedEffect(authState, isAdmin.value) {
                 when (authState) {
-
                     is AuthState.Loading -> Unit
-
                     is AuthState.LoggedOut -> {
                         navController.navigate("auth") {
                             popUpTo(0)
                         }
                     }
-
                     is AuthState.LoggedIn -> {
-                        navController.navigate("main_graph") {
-                            popUpTo(0)
+                        if (isAdmin.value == true) {
+                            navController.navigate("admin_graph") {
+                                popUpTo(0)
+                            }
+                        } else {
+                            navController.navigate("main_graph") {
+                                popUpTo(0)
+                            }
                         }
                     }
                 }
@@ -77,13 +75,8 @@ class MainActivity : ComponentActivity() {
 
             Scaffold(
                 bottomBar = {
-                    if (currentRoute in listOf(
-                            Screen.MainScreen.route,
-                            Screen.ProfileScreen.route
-                        )
-                    ) {
+                    if (currentRoute in listOf(Screen.MainScreen.route, Screen.ProfileScreen.route)) {
                         NavigationBar {
-
                             NavigationBarItem(
                                 selected = currentRoute == Screen.MainScreen.route,
                                 onClick = {
@@ -111,54 +104,57 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             ) { padding ->
-
                 NavHost(
                     navController = navController,
                     startDestination = "auth",
                     modifier = Modifier.padding(padding)
                 ) {
-
-                    // 🔐 AUTH GRAPH
-                    navigation(
-                        startDestination = Screen.LoginScreen.route,
-                        route = "auth"
-                    ) {
+                    // 1. AUTH GRAPH
+                    navigation(startDestination = Screen.LoginScreen.route, route = "auth") {
                         composable(Screen.LoginScreen.route) {
                             LoginScreen(navController)
                         }
                     }
 
-                    // 🏠 MAIN GRAPH
-                    navigation(
-                        startDestination = Screen.MainScreen.route,
-                        route = "main_graph"
-                    ) {
-
+                    // 2. MAIN GRAPH (Normal Kullanıcılar İçin)
+                    navigation(startDestination = Screen.MainScreen.route, route = "main_graph") {
                         composable(Screen.MainScreen.route) { backStackEntry ->
-
+                            // FIX: admin_graph'a geçiş animasyonu sırasında main_graph
+                            // back stack'ten çıkmış olabilir; try-catch ile koruyoruz.
                             val parentEntry = remember(backStackEntry) {
-                                navController.getBackStackEntry("main_graph")
+                                try {
+                                    navController.getBackStackEntry("main_graph")
+                                } catch (e: IllegalArgumentException) {
+                                    null
+                                }
                             }
-
-                            val viewModel: MainViewModel =
-                                hiltViewModel(parentEntry)
-
-                            MainScreen(
-                                navController = navController,
-                                viewModel = viewModel
-                            )
+                            if (parentEntry != null) {
+                                val viewModel: MainViewModel = hiltViewModel(parentEntry)
+                                MainScreen(navController = navController, viewModel = viewModel)
+                            }
                         }
 
                         composable(Screen.ProfileScreen.route) { backStackEntry ->
-
+                            // FIX: aynı guard burada da gerekli.
                             val parentEntry = remember(backStackEntry) {
-                                navController.getBackStackEntry("main_graph")
+                                try {
+                                    navController.getBackStackEntry("main_graph")
+                                } catch (e: IllegalArgumentException) {
+                                    null
+                                }
                             }
+                            if (parentEntry != null) {
+                                val viewModel: MainViewModel = hiltViewModel(parentEntry)
+                                ProfileScreen(viewModel)
+                            }
+                        }
+                    }
 
-                            val viewModel: MainViewModel =
-                                hiltViewModel(parentEntry)
-
-                            ProfileScreen(viewModel)
+                    // 3. ADMIN GRAPH (Admin Kullanıcı İçin)
+                    navigation(startDestination = "admin_home", route = "admin_graph") {
+                        composable("admin_home") {
+                            val adminViewModel: AdminViewModel = hiltViewModel()
+                            AdminScreen(viewModel = adminViewModel, navController = navController)
                         }
                     }
                 }

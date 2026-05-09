@@ -138,9 +138,9 @@ class MainViewModel @Inject constructor(
                         }
 
                         val newStatus = when {
+                            charger.chargerStatus == ChargerStatus.OFFLINE -> ChargerStatus.OFFLINE
                             isOccupiedNow && hasFuture -> ChargerStatus.OCCUPIED
                             isOccupiedNow && !hasFuture -> ChargerStatus.FULL
-                            // Şu an boş ama ileride rezervasyon var
                             else -> ChargerStatus.AVAILABLE
                         }
 
@@ -275,7 +275,6 @@ class MainViewModel @Inject constructor(
         if (station != null) {
             _state.update { it.copy(currentStation = station) }
         } else {
-            // Fallback: listede yoksa repo'dan çek
             viewModelScope.launch {
                 val fromRepo = stationRepo.getStationById(stationId)
                 _state.update { it.copy(currentStation = fromRepo) }
@@ -284,7 +283,6 @@ class MainViewModel @Inject constructor(
     }
 
     fun setCurrentCharger(chargerId: Long) {
-        // BUG FIX 3: Önce currentStation'daki charger'lara bak, repo çağrısını azalt
         val chargerFromState = _state.value.currentStation?.chargers?.find { it.id == chargerId }
         if (chargerFromState != null) {
             _state.update { it.copy(currentCharger = chargerFromState) }
@@ -319,17 +317,29 @@ class MainViewModel @Inject constructor(
 
     fun deleteReservation(resId: Long) {
         viewModelScope.launch {
-            //reservationRepo.deleteReservation(resId)
             reservationRepo.updateReservationStatus(resId, ReservationStatus.CANCELLED)
             clearRoute()
             stopBilling()
+
+            val reservation = _state.value.currentReservation
+            if (reservation != null) {
+                val liveStation = _state.value.allStations.find { it.id == reservation.station.id }
+                val isStationOffline = liveStation?.status == StationStatus.OFFLINE
+                if (!isStationOffline) {
+                    stationRepo.updateChargerStatus(reservation.charger.id, ChargerStatus.AVAILABLE)
+                }
+            }
+
             _state.update { it.copy(currentReservation = null) }
         }
-
     }
 
     fun clearSelectedTimes() {
         _state.update { it.copy(selectedStartIndex = null, selectedEndIndex = null) }
+    }
+
+    fun clearSearchText(){
+        _state.update { it.copy(searchText = "") }
     }
 
     fun selectTimeSlot(timeSlotIndex: Int) {
@@ -437,6 +447,8 @@ class MainViewModel @Inject constructor(
     val timerFlow = _timerFlow.asStateFlow()
 
     fun startBilling() {
+
+
         if (job?.isActive == true) return
         job = viewModelScope.launch {
             while (true) {
@@ -444,7 +456,8 @@ class MainViewModel @Inject constructor(
                 val vehicle = _state.value.currentVehicle ?: break
                 val now = LocalDateTime.now()
 
-                // 1. DURUM: Süre bitti (Otomatik tamamlama)
+                val liveStation = _state.value.allStations.find { it.id == res.station.id }
+                println("DEBUG: liveStation=${liveStation?.name}, status=${liveStation?.status}, allStations size=${_state.value.allStations.size}")
                 if (now.isAfter(res.endTime)) {
                     val finalKwh = calculateConsumedKwh(res.startTime, res.endTime, res.charger.powerOutput, vehicle.capacity, vehicle.currentKwh)
                     _state.update { it.copy(currentKwh = finalKwh) }
@@ -452,16 +465,25 @@ class MainViewModel @Inject constructor(
                     break
                 }
 
-                // 2. DURUM: Rezervasyon saati henüz gelmedi (Bekleme modu)
                 if (now.isBefore(res.startTime)) {
                     _timerFlow.value = 0
                     _state.update { it.copy(isChargingNow = false, currentKwh = 0.0) }
-                }
-                // 3. DURUM: Şarj şu an aktif (Sayaç çalışır)
-                else {
+
+                    if (liveStation?.status == StationStatus.OFFLINE) {
+                        _state.update { it.copy(showCancelMessage = true, cancelMessage = "İstasyon çevrimdışı duruma geldiğinden rezervasyon askıya alındı.") }
+                        deleteReservation(res.id)
+                        break
+                    }
+                } else {
+                    if (liveStation?.status == StationStatus.OFFLINE) {
+                        val finalKwh = calculateConsumedKwh(res.startTime, now, res.charger.powerOutput, vehicle.capacity, vehicle.currentKwh)
+                        _state.update { it.copy(currentKwh = finalKwh,showCancelMessage = true, cancelMessage = "İstasyon çevrimdışı duruma geldiğinden şarj işlemi duraklatıldı.") }
+                        completeReservation()
+                        break
+                    }
+
                     val currentKwh = calculateConsumedKwh(res.startTime, now, res.charger.powerOutput, vehicle.capacity, vehicle.currentKwh)
                     val diffInSeconds = Duration.between(res.startTime, now).toSeconds()
-
                     _timerFlow.value = diffInSeconds.toInt()
                     _state.update { it.copy(isChargingNow = true, currentKwh = currentKwh) }
                 }
@@ -497,7 +519,6 @@ class MainViewModel @Inject constructor(
         val now = LocalDateTime.now()
         val actualEndTime = if (now.isAfter(reservation.endTime)) reservation.endTime else now
 
-        // 1. Önce net tüketimi hesapla
         val finalKwh = calculateConsumedKwh(
             reservation.startTime,
             actualEndTime,
@@ -507,7 +528,6 @@ class MainViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            // 2. ÖNCE state'i bu nihai değerle güncelle ki stopBilling doğru değeri görsün
             _state.update { it.copy(currentKwh = finalKwh) }
 
             val totalCost = finalKwh * reservation.pricePerKwh
@@ -524,16 +544,22 @@ class MainViewModel @Inject constructor(
             )
 
             reservationRepo.createReservation(finalRecord)
-            stationRepo.updateChargerStatus(reservation.charger.id, ChargerStatus.AVAILABLE)
 
-            // 3. Makbuzu göster ama kWh'ı burada SIFIRLAMA!
-            _state.update { it.copy(
-                currentReservation = null,
-                showReceipt = true,
-                lastCompletedReservation = finalRecord
-            ) }
+            // ✅ Charger OFFLINE değilse AVAILABLE yap, admin kapattıysa dokunma
+            val liveStation = _state.value.allStations.find { it.id == reservation.station.id }
+            val isStationOffline = liveStation?.status == StationStatus.OFFLINE
+            if (!isStationOffline) {
+                stationRepo.updateChargerStatus(reservation.charger.id, ChargerStatus.AVAILABLE)
+            }
 
-            // 4. Şimdi durdur ve kaydet (Sıfırlama stopBilling içinde olacak)
+            _state.update {
+                it.copy(
+                    currentReservation = null,
+                    showReceipt = true,
+                    lastCompletedReservation = finalRecord
+                )
+            }
+
             stopBilling()
         }
     }
@@ -745,6 +771,10 @@ class MainViewModel @Inject constructor(
     fun closeToast(){
         _state.update { it.copy(showToast = false) }
     }
+
+    fun closeCancelMessage(){
+        _state.update { it.copy(showCancelMessage = false,cancelMessage = "") }
+    }
 }
 
 
@@ -790,6 +820,8 @@ data class UiState(
     val userLocation: LatLng? = null,
     val searchText: String = "",
 
+    val showCancelMessage : Boolean = false,
+    val cancelMessage : String = ""
 ) {
     val displayedStations: List<Station>
         get() {

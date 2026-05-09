@@ -91,6 +91,16 @@ object AppModule {
                     CoroutineScope(Dispatchers.IO).launch {
                         val dao = dbProvider.get().appDao()
 
+                        val admin = UserEntity(
+                            id = 0,
+                            name = "Admin",
+                            email = "admin",
+                            password = "123"
+                        )
+                        val adminId = dao.insertUser(admin)
+                        val adminWallet = WalletEntity(userId = adminId, balance = 1500.0)
+                        dao.insertWallet(adminWallet)
+
                         val defaultUser1 = UserEntity(
                             id = 0,
                             name = "Ali Onur Eskiocak",

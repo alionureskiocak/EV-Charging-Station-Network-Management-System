@@ -85,6 +85,8 @@ dependencies {
     implementation ("androidx.work:work-runtime-ktx:2.10.3")
     implementation("androidx.hilt:hilt-navigation-fragment:1.0.0")
 
+    implementation("com.patrykandpatrick.vico:compose:1.16.1")
+    implementation("com.patrykandpatrick.vico:compose-m3:1.16.1")
 
     implementation ("com.google.maps.android:maps-compose:2.13.0")
     implementation("com.google.android.gms:play-services-maps:20.0.0")

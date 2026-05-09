@@ -18,9 +18,13 @@ class AppViewModel @Inject constructor(
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState = _authState.asStateFlow()
 
+    private val _isUserAdmin = MutableStateFlow<Boolean>(false)
+    val isUserAdmin = _isUserAdmin.asStateFlow()
+
     init {
         viewModelScope.launch {
             sessionManager.currentUserId.collect{ userId ->
+                _isUserAdmin.value = userId == 1L
                 _authState.value = if (userId != null){
                     AuthState.LoggedIn(userId)
                 }else{
@@ -29,4 +33,5 @@ class AppViewModel @Inject constructor(
             }
         }
     }
+
 }
