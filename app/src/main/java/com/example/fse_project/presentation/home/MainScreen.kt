@@ -116,7 +116,6 @@ import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.model.StationStatus
 import com.example.fse_project.domain.model.Vehicle
-import com.example.fse_project.presentation.navigation.Screen
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -502,7 +501,6 @@ fun MainScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         FilterOptionsBar(
                             onFilterSelect = { filter ->
-                                // TODO: Seçilen filtreyi ViewModel'e gönder
                                 viewModel.onFilterSelected(filter)
                             },
                             selectedFilter = state.selectedFilter
@@ -604,7 +602,8 @@ fun MainScreen(
                                 viewModel.setCurrentVehicle(it)
                                 showCarDialog = false
                             },
-                            onReportClick = { showReportDialog = true }
+                            onReportClick = { showReportDialog = true },
+                            onCarChooseClick = {showCarDialog = true}
                         )
                     } else {
                         ChargerTimeSlotsScreen(
@@ -816,6 +815,7 @@ fun ChargerChoiceScreen(
     onChargerClick: (Long) -> Unit,
     onVehicleAdd: () -> Unit,
     onVehicleSelect: (Vehicle) -> Unit,
+    onCarChooseClick :() -> Unit,
     onReportClick: () -> Unit
 ) {
     Column(
@@ -951,7 +951,11 @@ fun ChargerChoiceScreen(
         } else {
             // Araç Yoksa Boş Durum
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Lütfen profilinizden bir araç seçin veya ekleyin.")
+                Button(
+                    onClick = {onCarChooseClick()}
+                ) {
+                    Text("Araç Seç")
+                }
             }
         }
     }

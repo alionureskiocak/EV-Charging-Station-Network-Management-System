@@ -24,6 +24,6 @@ class ReportRepositoryImpl @Inject constructor(
     }
 
     override fun getAllReports(): Flow<List<ReportError>> {
-        return dao.getAllReports().map { it.map { it.toDomain() } }
+        return dao.getAllReportsWithDetails().map { it.map { it.toDomain() } }
     }
 }

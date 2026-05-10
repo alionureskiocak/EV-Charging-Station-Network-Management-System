@@ -214,6 +214,7 @@ class MainViewModel @Inject constructor(
                             currentUser = newState.currentUser,
                             usersReservations = newState.usersReservations,
                             usersVehicles = newState.usersVehicles,
+                            userReports = newState.userReports,
                             favoriteStations = newState.favoriteStations,
                             currentReservation = newState.currentReservation,
                             currentStation = old.currentStation ?: newState.currentStation,
@@ -753,13 +754,13 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             val currentUser = _state.value.currentUser ?: return@launch
             val currentStation = _state.value.currentStation ?: return@launch
-            println("sexxxx")
             val reportError = ReportError(
                 id = 0,
                 userId = currentUser.id,
                 stationId = currentStation.id,
                 report = report,
-                description = description
+                description = description,
+                createdAt = System.currentTimeMillis()
             )
             reportRepo.insertReport(reportError)
         }

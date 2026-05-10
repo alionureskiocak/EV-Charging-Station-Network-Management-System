@@ -32,6 +32,7 @@ import com.example.fse_project.presentation.home.MainScreen
 import com.example.fse_project.presentation.home.MainViewModel
 import com.example.fse_project.presentation.navigation.AppViewModel
 import com.example.fse_project.presentation.navigation.AuthState
+import com.example.fse_project.presentation.operator.OperatorScreen
 import com.example.fse_project.presentation.profile.ProfileScreen
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -50,24 +51,19 @@ class MainActivity : ComponentActivity() {
             val currentRoute = backStackEntry?.destination?.route
 
             val isAdmin = appViewModel.isUserAdmin.collectAsState()
+            val isOperator = appViewModel.isUserOperator.collectAsState()
 
             LaunchedEffect(authState, isAdmin.value) {
                 when (authState) {
                     is AuthState.Loading -> Unit
                     is AuthState.LoggedOut -> {
-                        navController.navigate("auth") {
-                            popUpTo(0)
-                        }
+                        navController.navigate("auth") { popUpTo(0) }
                     }
                     is AuthState.LoggedIn -> {
-                        if (isAdmin.value == true) {
-                            navController.navigate("admin_graph") {
-                                popUpTo(0)
-                            }
-                        } else {
-                            navController.navigate("main_graph") {
-                                popUpTo(0)
-                            }
+                        when {
+                            isAdmin.value == true -> navController.navigate("admin_graph") { popUpTo(0) }
+                            isOperator.value == true -> navController.navigate("operator_graph") { popUpTo(0) }
+                            else -> navController.navigate("main_graph") { popUpTo(0) }
                         }
                     }
                 }
@@ -88,7 +84,6 @@ class MainActivity : ComponentActivity() {
                                 },
                                 icon = { Icon(Icons.Default.Home, null) }
                             )
-
                             NavigationBarItem(
                                 selected = currentRoute == Screen.ProfileScreen.route,
                                 onClick = {
@@ -116,32 +111,22 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // 2. MAIN GRAPH (Normal Kullanıcılar İçin)
+                    // 2. MAIN GRAPH
                     navigation(startDestination = Screen.MainScreen.route, route = "main_graph") {
                         composable(Screen.MainScreen.route) { backStackEntry ->
-                            // FIX: admin_graph'a geçiş animasyonu sırasında main_graph
-                            // back stack'ten çıkmış olabilir; try-catch ile koruyoruz.
                             val parentEntry = remember(backStackEntry) {
-                                try {
-                                    navController.getBackStackEntry("main_graph")
-                                } catch (e: IllegalArgumentException) {
-                                    null
-                                }
+                                try { navController.getBackStackEntry("main_graph") }
+                                catch (e: IllegalArgumentException) { null }
                             }
                             if (parentEntry != null) {
                                 val viewModel: MainViewModel = hiltViewModel(parentEntry)
                                 MainScreen(navController = navController, viewModel = viewModel)
                             }
                         }
-
                         composable(Screen.ProfileScreen.route) { backStackEntry ->
-                            // FIX: aynı guard burada da gerekli.
                             val parentEntry = remember(backStackEntry) {
-                                try {
-                                    navController.getBackStackEntry("main_graph")
-                                } catch (e: IllegalArgumentException) {
-                                    null
-                                }
+                                try { navController.getBackStackEntry("main_graph") }
+                                catch (e: IllegalArgumentException) { null }
                             }
                             if (parentEntry != null) {
                                 val viewModel: MainViewModel = hiltViewModel(parentEntry)
@@ -150,11 +135,19 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // 3. ADMIN GRAPH (Admin Kullanıcı İçin)
+                    // 3. ADMIN GRAPH
                     navigation(startDestination = "admin_home", route = "admin_graph") {
                         composable("admin_home") {
                             val adminViewModel: AdminViewModel = hiltViewModel()
                             AdminScreen(viewModel = adminViewModel, navController = navController)
+                        }
+                    }
+
+                    // 4. OPERATOR GRAPH
+                    navigation(startDestination = "operator_home", route = "operator_graph") {
+                        composable("operator_home") {
+                            val adminViewModel: AdminViewModel = hiltViewModel()
+                            OperatorScreen(viewModel = adminViewModel, navController = navController)
                         }
                     }
                 }

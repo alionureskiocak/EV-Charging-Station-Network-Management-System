@@ -119,14 +119,7 @@ fun AdminScreen(viewModel: AdminViewModel = hiltViewModel(), navController: NavC
             StationPeakHoursSection(state.stationsAndPeakHoursList)
             HorizontalDivider()
 
-            StationListSection(
-                stations = state.allStations,
-                totalCompleted = state.completedReservations.size,
-                onManageClick = { station ->
-                    currentStationId = station.id
-                    showStationDialog = true
-                }
-            )
+
         }
     }
 }
@@ -261,59 +254,7 @@ fun StationPeakHoursSection(stationPeakHoursList: List<StationPeakHours>) {
     }
 }
 
-@Composable
-fun StationListSection(
-    stations: List<Station>,
-    totalCompleted: Int,
-    onManageClick: (Station) -> Unit
-) {
-    Column {
-        SectionTitle(title = "Kayıtlı İstasyonlar", icon = Icons.Default.EvStation)
-        Text(
-            text = "Sistemde toplam ${stations.size} istasyon " +
-                    "ve tamamlanmış $totalCompleted rezervasyon var.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        stations.forEach { station ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = station.name, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = when (station.status) {
-                                StationStatus.AVAILABLE -> "Çevrimiçi – Müsait"
-                                StationStatus.OCCUPIED  -> "Çevrimiçi – Meşgul"
-                                StationStatus.FULL      -> "Çevrimiçi – Dolu"
-                                StationStatus.OFFLINE   -> "Çevrimdışı"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = when (station.status) {
-                                StationStatus.OFFLINE -> MaterialTheme.colorScheme.error
-                                else                  -> MaterialTheme.colorScheme.primary
-                            }
-                        )
-                    }
-                    OutlinedButton(onClick = { onManageClick(station) }) {
-                        Text("Yönet")
-                    }
-                }
-            }
-        }
-    }
-}
+
 
 @Composable
 fun StationDialog(

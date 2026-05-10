@@ -8,6 +8,7 @@ import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.data.local.database.entities.UserEntity
 import com.example.fse_project.data.local.database.entities.VehicleEntity
 import com.example.fse_project.data.local.database.entities.WalletEntity
+import com.example.fse_project.data.local.database.relations.ReportWithDetails
 import com.example.fse_project.data.local.database.relations.ReservationWithDetails
 import com.example.fse_project.data.local.database.relations.StationWithChargers
 import com.example.fse_project.data.local.database.relations.UserWithVehiclesAndWallet
@@ -136,24 +137,6 @@ fun Reservation.toEntity(): ReservationEntity = ReservationEntity(
     totalAmount = totalAmount
 )
 
-/*
-fun ReservationWithDetails.toDomain() : Reservation{
-    return Reservation(
-        id = this.reservation.id,
-        user = this.user.toDomain(),
-        vehicle = this.vehicle.toDomain(),
-        station = this.station.toDomain(),
-        charger = this.charger.toDomain(),
-        startTime = this.reservation.startTime,
-        endTime = this.reservation.endTime,
-        pricePerKwh = this.reservation.pricePerKwh,
-        status = this.reservation.status,
-        actualKwh = this.reservation.actualKwh,
-        totalAmount = this.reservation.totalAmount
-    )
-}
-*/
-// SONRA (düzeltilmiş)
 fun ReservationWithDetails.toDomain() : Reservation {
     return Reservation(
         id = this.reservation.id,
@@ -170,7 +153,6 @@ fun ReservationWithDetails.toDomain() : Reservation {
     )
 }
 
-// --- Wallet Mapper ---
 fun WalletEntity.toDomain(): Wallet = Wallet(
     userId = userId,
     balance = balance
@@ -191,7 +173,7 @@ fun Favorite.toEntity() = FavoriteEntity(
     stationId = stationId
 )
 
-fun ReportErrorEntity.toDomain() = ReportError(
+fun ReportError.toDomain() = ReportErrorEntity(
     userId = userId,
     stationId = stationId,
     report = report,
@@ -199,10 +181,13 @@ fun ReportErrorEntity.toDomain() = ReportError(
     id = id
 )
 
-fun ReportError.toDomain() = ReportErrorEntity(
-    userId = userId,
-    stationId = stationId,
-    report = report,
-    description = description,
-    id = id
+fun ReportWithDetails.toDomain() = ReportError(
+    id = report.id,
+    userId = report.userId,
+    stationId = report.stationId,
+    report = report.report,
+    description = report.description,
+    createdAt = report.createdAt,
+    userName = user.name,
+    stationName = station.name
 )

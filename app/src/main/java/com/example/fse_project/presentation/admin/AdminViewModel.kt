@@ -6,6 +6,7 @@ import com.example.fse_project.data.datastore.SessionManager
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ReservationStatus
 import com.example.fse_project.domain.model.Charger
+import com.example.fse_project.domain.model.ReportError
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
 import com.example.fse_project.domain.repository.DirectionsRepository
@@ -37,12 +38,21 @@ class AdminViewModel @Inject constructor(
     init {
         observeReservationData()
         observeStationData()
+        observeAllReports()
     }
 
     private fun observeStationData() {
         viewModelScope.launch {
             stationRepo.getStations().collect { stations ->
                 _state.update { it.copy(allStations = stations) }
+            }
+        }
+    }
+
+    private fun observeAllReports(){
+        viewModelScope.launch {
+            reportRepo.getAllReports().collect { reports ->
+                _state.update { it.copy(reports = reports) }
             }
         }
     }
@@ -165,5 +175,7 @@ data class UiState(
     val dailyRevenue: Double = 0.0,
     val weeklyRevenue: Double = 0.0,
     val monthlyRevenue: Double = 0.0,
-    val annualRevenue: Double = 0.0
-)
+    val annualRevenue: Double = 0.0,
+
+    val reports : List<ReportError> = emptyList(),
+    )

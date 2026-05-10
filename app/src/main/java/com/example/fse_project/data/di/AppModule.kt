@@ -101,6 +101,18 @@ object AppModule {
                         val adminWallet = WalletEntity(userId = adminId, balance = 1500.0)
                         dao.insertWallet(adminWallet)
 
+                        val operator = UserEntity(
+                            id = 0,
+                            name = "Operator",
+                            email = "operator",
+                            password = "123"
+                        )
+                        val operatorId = dao.insertUser(operator)
+                        val operatorWallet = WalletEntity(userId = operatorId, balance = 1500.0)
+                        dao.insertWallet(operatorWallet)
+
+
+
                         val defaultUser1 = UserEntity(
                             id = 0,
                             name = "Ali Onur Eskiocak",

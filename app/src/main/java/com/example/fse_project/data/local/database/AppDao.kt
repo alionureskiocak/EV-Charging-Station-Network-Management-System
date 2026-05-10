@@ -17,6 +17,7 @@ import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.data.local.database.entities.UserEntity
 import com.example.fse_project.data.local.database.entities.VehicleEntity
 import com.example.fse_project.data.local.database.entities.WalletEntity
+import com.example.fse_project.data.local.database.relations.ReportWithDetails
 import com.example.fse_project.data.local.database.relations.ReservationWithDetails
 import com.example.fse_project.data.local.database.relations.StationWithChargers
 import com.example.fse_project.data.local.database.relations.UserWithVehiclesAndWallet
@@ -150,13 +151,19 @@ interface AppDao {
     suspend fun updateChargerStatus(chargerId : Long, newStatus : ChargerStatus)
 
 
-    /////////////// CHARGER //////////////////////////
+    /////////////// REPORT //////////////////////////
 
     @Insert
     suspend fun insertReport(report : ReportErrorEntity) : Long
 
-    @Query("SELECT * FROM reports WHERE id = :userId")
-    fun getReportsByUser(userId : Long) : Flow<List<ReportErrorEntity>>
+    @Transaction
+    @Query("SELECT * FROM reports ORDER BY createdAt DESC")
+    fun getAllReportsWithDetails(): Flow<List<ReportWithDetails>>
+
+    @Transaction
+    @Query("SELECT * FROM reports WHERE userId = :userId ORDER BY createdAt DESC")
+    fun getReportsByUser(userId : Long): Flow<List<ReportWithDetails>>
+
 
     @Query("SELECT * FROM reports")
     fun getAllReports() : Flow<List<ReportErrorEntity>>
@@ -191,5 +198,6 @@ interface AppDao {
     @Transaction
     @Query("SELECT * FROM reservations")
     fun getAllReservations(): Flow<List<ReservationWithDetails>>
+
 
 }

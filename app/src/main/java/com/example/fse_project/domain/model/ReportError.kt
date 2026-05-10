@@ -7,5 +7,8 @@ data class ReportError(
     val userId : Long,
     val stationId : Long,
     val report : Report,
-    val description : String
+    val description : String,
+    val createdAt : Long,
+    val userName : String = "",
+    val stationName : String = ""
 )
