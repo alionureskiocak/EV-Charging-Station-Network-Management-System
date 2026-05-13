@@ -1,7 +1,9 @@
 package com.example.fse_project.data.mapper
 
+import com.example.fse_project.data.local.database.entities.AdminEntity
 import com.example.fse_project.data.local.database.entities.ChargerEntity
 import com.example.fse_project.data.local.database.entities.FavoriteEntity
+import com.example.fse_project.data.local.database.entities.OperatorEntity
 import com.example.fse_project.data.local.database.entities.ReportErrorEntity
 import com.example.fse_project.data.local.database.entities.ReservationEntity
 import com.example.fse_project.data.local.database.entities.StationEntity
@@ -12,8 +14,10 @@ import com.example.fse_project.data.local.database.relations.ReportWithDetails
 import com.example.fse_project.data.local.database.relations.ReservationWithDetails
 import com.example.fse_project.data.local.database.relations.StationWithChargers
 import com.example.fse_project.data.local.database.relations.UserWithVehiclesAndWallet
+import com.example.fse_project.domain.model.Admin
 import com.example.fse_project.domain.model.Charger
 import com.example.fse_project.domain.model.Favorite
+import com.example.fse_project.domain.model.Operator
 import com.example.fse_project.domain.model.ReportError
 import com.example.fse_project.domain.model.Reservation
 import com.example.fse_project.domain.model.Station
@@ -190,4 +194,32 @@ fun ReportWithDetails.toDomain() = ReportError(
     createdAt = report.createdAt,
     userName = user.name,
     stationName = station.name
+)
+
+fun AdminEntity.toDomain() = Admin(
+    id = id,
+    name = name,
+    email = email,
+    password = password
+)
+
+fun Admin.toEntity() = AdminEntity(
+    id = id,
+    name = name,
+    email = email,
+    password = password
+)
+
+fun OperatorEntity.toDomain() = Operator(
+    id = id,
+    name = name,
+    email = email,
+    password = password
+)
+
+fun Operator.toEntity() = OperatorEntity(
+    id = id,
+    name = name,
+    email = email,
+    password = password
 )

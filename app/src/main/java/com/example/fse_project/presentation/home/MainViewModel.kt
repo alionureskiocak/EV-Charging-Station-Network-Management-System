@@ -36,8 +36,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -167,7 +169,7 @@ class MainViewModel @Inject constructor(
 
     private fun observeAllReports(){
         viewModelScope.launch {
-            reportRepo.getAllReports().collect { reports ->
+            reportRepo.getAllReports().map { it.filter { it.id == 44L }}.collect { reports ->
                 _state.update { it.copy(reports = reports) }
             }
         }
@@ -233,7 +235,6 @@ class MainViewModel @Inject constructor(
         }
     }
 
-
     fun getUsers() {
         viewModelScope.launch {
             userRepo.getUsers().collect {
@@ -242,19 +243,10 @@ class MainViewModel @Inject constructor(
         }
     }
 
-
     fun getUsersReservations(id: Long) {
         viewModelScope.launch {
             reservationRepo.getAllReservationsByUserId(id).collect {
                 _state.update { state -> state.copy(usersReservations = it) }
-            }
-        }
-    }
-
-    fun getUsersCars(id: Long) {
-        viewModelScope.launch {
-            userRepo.getVehiclesByUserId(id).collect {
-                _state.update { state -> state.copy(usersVehicles = it) }
             }
         }
     }
@@ -269,7 +261,6 @@ class MainViewModel @Inject constructor(
     fun setCurrentVehicle(vehicle: Vehicle) {
         _state.update { it.copy(currentVehicle = vehicle) }
     }
-
 
     fun setCurrentStation(stationId: Long) {
         val station = _state.value.allStations.find { it.id == stationId }
@@ -448,8 +439,6 @@ class MainViewModel @Inject constructor(
     val timerFlow = _timerFlow.asStateFlow()
 
     fun startBilling() {
-
-
         if (job?.isActive == true) return
         job = viewModelScope.launch {
             while (true) {
@@ -546,7 +535,6 @@ class MainViewModel @Inject constructor(
 
             reservationRepo.createReservation(finalRecord)
 
-            // ✅ Charger OFFLINE değilse AVAILABLE yap, admin kapattıysa dokunma
             val liveStation = _state.value.allStations.find { it.id == reservation.station.id }
             val isStationOffline = liveStation?.status == StationStatus.OFFLINE
             if (!isStationOffline) {
@@ -597,6 +585,7 @@ class MainViewModel @Inject constructor(
             _timerFlow.value = 0
         }
     }
+
     fun getReservationTimeSlots(chargerId: Long) {
         val referenceDate: LocalDateTime = LocalDateTime.now()
         val today = referenceDate.toLocalDate()
@@ -669,11 +658,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun fetchDirections(
-        originLat: Double,
-        originLng: Double,
-        destLat: Double,
-        destLng: Double
+    fun fetchDirections(originLat: Double, originLng: Double, destLat: Double, destLng: Double
     ) {
         viewModelScope.launch {
             _state.update { it.copy(isLoadingRoute = true, routeError = null) }
@@ -748,9 +733,7 @@ class MainViewModel @Inject constructor(
         _state.update { it.copy(showResCancelDialog = !_state.value.showResCancelDialog) }
     }
 
-    fun reportStation(
-        report : Report,
-        description : String){
+    fun reportStation(report : Report, description : String){
         viewModelScope.launch {
             val currentUser = _state.value.currentUser ?: return@launch
             val currentStation = _state.value.currentStation ?: return@launch
@@ -769,6 +752,7 @@ class MainViewModel @Inject constructor(
     fun showToast(msg : String){
         _state.update { it.copy(showToast = true, toastMsg = msg) }
     }
+
     fun closeToast(){
         _state.update { it.copy(showToast = false) }
     }
@@ -777,7 +761,6 @@ class MainViewModel @Inject constructor(
         _state.update { it.copy(showCancelMessage = false,cancelMessage = "") }
     }
 }
-
 
 data class UiState(
     val showToast : Boolean = false,

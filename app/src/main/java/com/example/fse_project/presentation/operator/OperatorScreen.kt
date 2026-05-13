@@ -122,15 +122,15 @@ fun OperatorStationListSection(
     onManageClick: (Station) -> Unit
 ) {
     Column {
-        SectionTitle(title = "Kayıtlı İstasyonlar", icon = Icons.Default.EvStation)
+        SectionTitle(title = "Yönetilen İstasyonlar", icon = Icons.Default.EvStation)
         Text(
-            text = "Sistemde toplam ${stations.size} istasyon " +
+            text = "Yönetilen toplam ${stations.size} istasyon " +
                     "ve tamamlanmış $totalCompleted rezervasyon var.",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        // Sabit yükseklik — içerik kaydırılabilir
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()

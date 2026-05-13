@@ -27,8 +27,8 @@ class AppViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             sessionManager.currentUserId.collect{ userId ->
-                _isUserAdmin.value = userId == 1L
-                _isUserOperator.value = userId == 2L
+                _isUserAdmin.value = userId == 998L
+                _isUserOperator.value = userId == 999L
                 _authState.value = if (userId != null){
                     AuthState.LoggedIn(userId)
                 }else{

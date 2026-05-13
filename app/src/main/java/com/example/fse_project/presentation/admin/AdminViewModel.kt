@@ -17,6 +17,7 @@ import com.example.fse_project.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -43,7 +44,7 @@ class AdminViewModel @Inject constructor(
 
     private fun observeStationData() {
         viewModelScope.launch {
-            stationRepo.getStations().collect { stations ->
+            stationRepo.getStations().map { it.filter { it.id == 44L } }.collect { stations ->
                 _state.update { it.copy(allStations = stations) }
             }
         }
@@ -51,7 +52,7 @@ class AdminViewModel @Inject constructor(
 
     private fun observeAllReports(){
         viewModelScope.launch {
-            reportRepo.getAllReports().collect { reports ->
+            reportRepo.getAllReports().map { it.filter { it.stationId == 44L } }.collect { reports ->
                 _state.update { it.copy(reports = reports) }
             }
         }
@@ -60,9 +61,9 @@ class AdminViewModel @Inject constructor(
     private fun observeReservationData() {
         viewModelScope.launch {
             reservationRepo.getAllReservations().collect { allReservations ->
-                val activeAndCompleted = allReservations.filter { it.status == ReservationStatus.COMPLETED || it.status == ReservationStatus.ACTIVE }
-                val completedReservations = allReservations.filter { it.status == ReservationStatus.COMPLETED }
-                val currentReservations = allReservations.filter { it.status == ReservationStatus.ACTIVE }
+                val activeAndCompleted = allReservations.filter { (it.status == ReservationStatus.COMPLETED || it.status == ReservationStatus.ACTIVE) && it.station.id == 44L }
+                val completedReservations = allReservations.filter { it.status == ReservationStatus.COMPLETED && it.station.id == 44L}
+                val currentReservations = allReservations.filter { it.status == ReservationStatus.ACTIVE && it.station.id == 44L}
 
                 val stationsAndPeakHours = activeAndCompleted
                     .groupBy { it.station }
@@ -158,11 +159,6 @@ class AdminViewModel @Inject constructor(
         }
     }
 
-    fun takeChargerOffline(charger : Charger){
-        viewModelScope.launch {
-            stationRepo.updateChargerStatus(charger.id, ChargerStatus.OFFLINE)
-        }
-    }
 }
 
 data class UiState(

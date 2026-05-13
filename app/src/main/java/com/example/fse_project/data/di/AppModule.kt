@@ -11,10 +11,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.fse_project.App.Companion.BASE_URL
 import com.example.fse_project.data.local.database.AppDao
 import com.example.fse_project.data.local.database.AppDatabase
+import com.example.fse_project.data.local.database.entities.AdminEntity
 import com.example.fse_project.data.local.database.entities.ChargerEntity
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.ChargerType
 import com.example.fse_project.data.local.database.entities.ConnectorType
+import com.example.fse_project.data.local.database.entities.OperatorEntity
 import com.example.fse_project.data.local.database.entities.PowerOutput
 import com.example.fse_project.data.local.database.entities.StationEntity
 import com.example.fse_project.data.local.database.entities.UserEntity
@@ -91,33 +93,28 @@ object AppModule {
                     CoroutineScope(Dispatchers.IO).launch {
                         val dao = dbProvider.get().appDao()
 
-                        val admin = UserEntity(
-                            id = 0,
+                        val admin = AdminEntity(
+                            id = 998,
                             name = "Admin",
                             email = "admin",
                             password = "123"
                         )
-                        val adminId = dao.insertUser(admin)
-                        val adminWallet = WalletEntity(userId = adminId, balance = 1500.0)
-                        dao.insertWallet(adminWallet)
+                        dao.insertAdmin(admin)
 
-                        val operator = UserEntity(
-                            id = 0,
+                        val operator = OperatorEntity(
+                            id = 999,
                             name = "Operator",
                             email = "operator",
                             password = "123"
                         )
-                        val operatorId = dao.insertUser(operator)
-                        val operatorWallet = WalletEntity(userId = operatorId, balance = 1500.0)
-                        dao.insertWallet(operatorWallet)
 
-
+                        dao.insertOperator(operator)
 
                         val defaultUser1 = UserEntity(
                             id = 0,
                             name = "Ali Onur Eskiocak",
-                            email = "a",
-                            password = "a"
+                            email = "ali@gmail.com",
+                            password = "ali"
                         )
                         val newUserId1 = dao.insertUser(defaultUser1)
                         val defaultWallet = WalletEntity(userId = newUserId1, balance = 1500.0)
@@ -125,8 +122,8 @@ object AppModule {
                         val defaultVehicle1 = VehicleEntity(
                             id = 0,
                             ownerId = newUserId1,
-                            brand = "Tesla",
-                            model = "Model Y",
+                            brand = "Porsche",
+                            model = "Taycan",
                             capacity = 75.0,
                             connectorType = ConnectorType.CCS,
                             licensePlate = "35 ALI 35",
@@ -137,7 +134,7 @@ object AppModule {
                         val defaultUser2 = UserEntity(
                             id = 0,
                             name = "Kaan Çığrı",
-                            email = "kaan",
+                            email = "kaan@gmail.com",
                             password = "kaan"
                         )
                         val newUserId2 = dao.insertUser(defaultUser2)
@@ -159,7 +156,7 @@ object AppModule {
                         val defaultUser3 = UserEntity(
                             id = 0,
                             name = "Furkan Çokbilen",
-                            email = "furkan",
+                            email = "furkan@gmail.com",
                             password = "furkan"
                         )
                         val newUserId3 = dao.insertUser(defaultUser3)
@@ -168,8 +165,8 @@ object AppModule {
                         val defaultVehicle3 = VehicleEntity(
                             id = 0,
                             ownerId = newUserId3,
-                            brand = "TOGG",
-                            model = "T10X",
+                            brand = "Citroen",
+                            model = "Ami",
                             capacity = 90.0,
                             connectorType = ConnectorType.CHADEMO,
                             licensePlate = "35 FRK 35",
@@ -180,7 +177,7 @@ object AppModule {
                         val defaultUser4 = UserEntity(
                             id = 0,
                             name = "Özümcan Şahin",
-                            email = "ozum",
+                            email = "ozum@gmail.com",
                             password = "ozum"
                         )
                         val newUserId4 = dao.insertUser(defaultUser4)
@@ -200,7 +197,6 @@ object AppModule {
                         dao.insertVehicle(defaultVehicle4)
 
                         val stationsData = listOf(
-                            // Yeni Eklenenler (Balçova, Gaziemir, Karabağlar, Buca)
                             PrepopulatedStation(
                                 "Miggo Şarj İstasyonu",
                                 "İnciraltı, Güldeste Sk., 35330 Balçova/İzmir",

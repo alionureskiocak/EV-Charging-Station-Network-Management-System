@@ -603,7 +603,7 @@ fun MainScreen(
                                 showCarDialog = false
                             },
                             onReportClick = { showReportDialog = true },
-                            onCarChooseClick = {showCarDialog = true}
+                            onCarChooseClick ={showCarDialog = true}
                         )
                     } else {
                         ChargerTimeSlotsScreen(

@@ -44,36 +44,70 @@ class LoginViewModel @Inject constructor(
         password: String
     ){
         viewModelScope.launch {
-            val user = User(
-                id = 0,
-                name = name,
-                email = email,
-                password = password
-            )
-            val id = repository.createUser(user)
-            _state.value = _state.value.copy(
-                isLoginSuccessful = true
-            )
-            setUserId(id)
+            if (email.contains("@gmail.com")
+                || email.contains("@hotmail.com")
+                || email.contains("@outlook.com")
+                || email.contains("@icloud.com")
+                ){
+                val user = User(
+                    id = 0,
+                    name = name,
+                    email = email,
+                    password = password
+                )
+                val id = repository.createUser(user)
+                _state.value = _state.value.copy(
+                    isLoginSuccessful = true
+                )
+                setUserId(id)
+            }else{
+                _effect.emit(LoginEffect.ShowToast("Please enter a valid email format!"))
+                return@launch
+            }
+
         }
     }
 
     fun signIn(email : String, password : String) {
         viewModelScope.launch {
 
-            val user = repository.login(email,password)
-            if (user.isNotNull()){
-                _state.value = _state.value.copy(
-                    isLoginSuccessful = true
-                )
-                setUserId(user!!.id)
-            }else{
-                _effect.emit(LoginEffect.ShowToast("Wrong username/password"))
+            if (email == "admin"){
+                val admin = repository.loginAdmin(email,password)
+                if (admin.isNotNull()){
+                    _state.value = _state.value.copy(
+                        isLoginSuccessful = true
+                    )
+                    setUserId(admin!!.id)
+                }else{
+                    _effect.emit(LoginEffect.ShowToast("Wrong username/password"))
 
+                }
             }
+            else if (email == "operator"){
+                val operator = repository.loginOperator(email,password)
+                if (operator.isNotNull()){
+                    _state.value = _state.value.copy(
+                        isLoginSuccessful = true
+                    )
+                    setUserId(operator!!.id)
+                }else{
+                    _effect.emit(LoginEffect.ShowToast("Wrong username/password"))
 
+                }
+            }
+            else{
+                val user = repository.login(email,password)
+                if (user.isNotNull()){
+                    _state.value = _state.value.copy(
+                        isLoginSuccessful = true
+                    )
+                    setUserId(user!!.id)
+                }else{
+                    _effect.emit(LoginEffect.ShowToast("Wrong username/password"))
+
+                }
+            }
         }
-
     }
 
     fun setUserId(id : Long){

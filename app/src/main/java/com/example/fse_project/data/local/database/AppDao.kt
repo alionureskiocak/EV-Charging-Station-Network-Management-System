@@ -6,9 +6,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import com.example.fse_project.data.local.database.entities.AdminEntity
 import com.example.fse_project.data.local.database.entities.ChargerEntity
 import com.example.fse_project.data.local.database.entities.ChargerStatus
 import com.example.fse_project.data.local.database.entities.FavoriteEntity
+import com.example.fse_project.data.local.database.entities.OperatorEntity
 import com.example.fse_project.data.local.database.entities.Report
 import com.example.fse_project.data.local.database.entities.ReportErrorEntity
 import com.example.fse_project.data.local.database.entities.ReservationEntity
@@ -47,6 +49,19 @@ interface AppDao {
     @Query("SELECT * FROM users")
     fun getUsersWithVehiclesAndWallet(): Flow<List<UserWithVehiclesAndWallet>>
 
+    /////////////// ADMIN & OPERATOR //////////////////////////
+
+    @Insert
+    suspend fun insertAdmin(adminEntity: AdminEntity): Long
+
+    @Insert
+    suspend fun insertOperator(operatorEntity: OperatorEntity): Long
+
+    @Query("SELECT * FROM admins WHERE email = :email AND password = :password")
+    suspend fun loginAdmin(email : String, password : String) : AdminEntity?
+
+    @Query("SELECT * FROM operators WHERE email = :email AND password = :password")
+    suspend fun loginOperator(email : String, password : String) : OperatorEntity?
 
     /////////////// VEHICLE //////////////////////////
 

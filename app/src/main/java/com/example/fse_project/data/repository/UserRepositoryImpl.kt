@@ -4,6 +4,8 @@ import com.example.fse_project.data.local.database.AppDao
 import com.example.fse_project.data.local.database.entities.WalletEntity
 import com.example.fse_project.data.mapper.toDomain
 import com.example.fse_project.data.mapper.toEntity
+import com.example.fse_project.domain.model.Admin
+import com.example.fse_project.domain.model.Operator
 import com.example.fse_project.domain.model.User
 import com.example.fse_project.domain.model.Vehicle
 import com.example.fse_project.domain.repository.UserRepository
@@ -22,6 +24,29 @@ class UserRepositoryImpl @Inject constructor(
     ): User? {
         val userEntity = dao.login(email,password)
         return userEntity?.toDomain()
+    }
+
+    override suspend fun loginAdmin(
+        email: String,
+        password: String
+    ): Admin? {
+        val adminEntity = dao.loginAdmin(email,password)
+        return adminEntity?.toDomain()
+    }
+
+    override suspend fun loginOperator(
+        email: String,
+        password: String
+    ): Operator? {
+        val operatorEntity = dao.loginOperator(email,password)
+        return operatorEntity?.toDomain()    }
+
+    override suspend fun insertAdmin(admin: Admin): Long {
+        return dao.insertAdmin(admin.toEntity())
+    }
+
+    override suspend fun insertOperator(operator: Operator): Long {
+        return dao.insertOperator(operator.toEntity())
     }
 
     override suspend fun createUser(user: User): Long {
